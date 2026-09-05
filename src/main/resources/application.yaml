@@ -1,12 +1,14 @@
 spring:
   application:
     name: helpdesk-api
+
   datasource:
     url: jdbc:mysql://localhost:3306/helpdesk?useSSL=false&serverTimezone=UTC
     username: ${DB_USER}
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
-    jpa:
-      hibernate:
-        ddl-auto: update
-      show-sql: true
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
