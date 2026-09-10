@@ -6,8 +6,8 @@ import com.leonardo.helpdesk.dto.update.ChangePasswordUpdateDto;
 import com.leonardo.helpdesk.dto.update.UserUpdateDto;
 import com.leonardo.helpdesk.entity.User;
 import com.leonardo.helpdesk.enums.UserRole;
-import com.leonardo.helpdesk.exception.EmailAlreadyRegistered;
-import com.leonardo.helpdesk.exception.EntityNotFound;
+import com.leonardo.helpdesk.exception.EmailAlreadyRegisteredException;
+import com.leonardo.helpdesk.exception.ResourceNotFoundException;
 import com.leonardo.helpdesk.mapper.UserMapper;
 import com.leonardo.helpdesk.repository.UserRepository;
 import jakarta.transaction.Transactional;
@@ -33,13 +33,13 @@ public class UserService {
 
     public User findUserOrThrow(UUID id){
         return userRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFound("User not found with ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + id));
     }
 
     @Transactional
     public UserResponseDto create(UserRequestDto requestDto) {
         if(userRepository.existsByEmail(requestDto.email())){
-            throw new EmailAlreadyRegistered("Email " + requestDto.email() + " already registered");
+            throw new EmailAlreadyRegisteredException("Email " + requestDto.email() + " already registered");
         }
 
         User user = userMapper.convertToEntity(requestDto);
@@ -73,7 +73,7 @@ public class UserService {
 
             if(updateDto.email() != null && !updateDto.email().isBlank()){
                 if(userRepository.existsByEmail(updateDto.email()) && !userExists.getEmail().equals(updateDto.email())){
-                    throw new EmailAlreadyRegistered("Email " + updateDto.email() + " already registered");
+                    throw new EmailAlreadyRegisteredException("Email " + updateDto.email() + " already registered");
                 }
 
                 userExists.setEmail(updateDto.email());
