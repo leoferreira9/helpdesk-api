@@ -7,9 +7,7 @@ import com.leonardo.helpdesk.entity.Ticket;
 import com.leonardo.helpdesk.entity.User;
 import com.leonardo.helpdesk.enums.TicketStatus;
 import com.leonardo.helpdesk.enums.UserRole;
-import com.leonardo.helpdesk.exception.ResourceNotFoundException;
-import com.leonardo.helpdesk.exception.RoleNotAllowedException;
-import com.leonardo.helpdesk.exception.UserNotActiveException;
+import com.leonardo.helpdesk.exception.*;
 import com.leonardo.helpdesk.mapper.TicketMapper;
 import com.leonardo.helpdesk.repository.TicketRepository;
 import com.leonardo.helpdesk.repository.UserRepository;
@@ -76,6 +74,10 @@ public class TicketService {
     public TicketResponseDto updateDetails(UUID id, TicketDetailsUpdateDto detailsUpdateDto) {
         Ticket ticketExists = findTicketOrThrow(id);
 
+        if(ticketExists.getStatus().equals(TicketStatus.CLOSED)) {
+            throw new InvalidTicketStatusException("Ticket can't be updated because it's Closed");
+        }
+
         if(detailsUpdateDto != null){
             if(detailsUpdateDto.title() != null && !detailsUpdateDto.title().isBlank()) {
                 ticketExists.setTitle(detailsUpdateDto.title());
@@ -99,6 +101,14 @@ public class TicketService {
         Ticket ticketExists = findTicketOrThrow(id);
         User technicianExists = findUserOrThrow(technicianId);
 
+        if(!ticketExists.getStatus().equals(TicketStatus.OPEN)) {
+            throw new InvalidTicketStatusException("Ticket must be Open to be assigned");
+        }
+
+        if(ticketExists.getTechnician() != null) {
+            throw new TechnicianAlreadySignedException("Technician already signed to this ticket");
+        }
+
         if(!technicianExists.getRole().equals(UserRole.TECHNICIAN)){
             throw new RoleNotAllowedException("User must be a Technician");
         }
@@ -108,14 +118,44 @@ public class TicketService {
         }
 
         ticketExists.setTechnician(technicianExists);
+        ticketExists.setStatus(TicketStatus.IN_PROGRESS);
         Ticket savedTicket = ticketRepository.save(ticketExists);
         return ticketMapper.convertToResponseDto(savedTicket);
     }
 
     @Transactional
-    public TicketResponseDto updateStatus(UUID id, TicketStatus status) {
+    public TicketResponseDto resolve(UUID id, UUID technicianId) {
         Ticket ticketExists = findTicketOrThrow(id);
-        ticketExists.setStatus(status);
+        User user = findUserOrThrow(technicianId);
+
+        if(!user.getRole().equals(UserRole.TECHNICIAN)) {
+            throw new RoleNotAllowedException("User must be a technician to resolve this ticket");
+        }
+
+        if(!user.isActive()){
+            throw new UserNotActiveException("Technician is not active");
+        }
+
+        if(ticketExists.getTechnician() != null) {
+            if(!ticketExists.getTechnician().getId().equals(user.getId())) {
+                throw new TechnicianNotResponsibleException("Technician not responsible for this ticket");
+            }
+        }
+
+        if(ticketExists.getTechnician() == null) {
+            throw new TechnicianNotResponsibleException("Ticket must have a technician to be resolved");
+        }
+
+        if(ticketExists.getStatus().equals(TicketStatus.RESOLVED)){
+            throw new InvalidTicketStatusException("Ticket already resolved");
+        }
+
+        if(!ticketExists.getStatus().equals(TicketStatus.IN_PROGRESS)) {
+            throw new InvalidTicketStatusException("Ticket must be In Progress to be resolved");
+        }
+
+        ticketExists.setStatus(TicketStatus.RESOLVED);
+        ticketExists.setResolvedAt(LocalDateTime.now());
         Ticket savedTicket = ticketRepository.save(ticketExists);
         return ticketMapper.convertToResponseDto(savedTicket);
     }
@@ -123,8 +163,12 @@ public class TicketService {
     @Transactional
     public TicketResponseDto close(UUID id) {
         Ticket ticketExists = findTicketOrThrow(id);
+
+        if(ticketExists.getStatus().equals(TicketStatus.OPEN)) {
+            throw new InvalidTicketStatusException("Ticket Open can't be Closed");
+        }
+
         ticketExists.setStatus(TicketStatus.CLOSED);
-        ticketExists.setResolvedAt(LocalDateTime.now());
         Ticket savedTicket = ticketRepository.save(ticketExists);
         return ticketMapper.convertToResponseDto(savedTicket);
     }
