@@ -59,8 +59,8 @@ public class TicketService {
     }
 
     @Transactional(readOnly = true)
-    public TicketResponseDto findById(UUID id){
-        Ticket ticketExists = findTicketOrThrow(id);
+    public TicketResponseDto findById(UUID ticketId){
+        Ticket ticketExists = findTicketOrThrow(ticketId);
         return ticketMapper.convertToResponseDto(ticketExists);
     }
 
@@ -71,8 +71,8 @@ public class TicketService {
     }
 
     @Transactional
-    public TicketResponseDto updateDetails(UUID id, TicketDetailsUpdateDto detailsUpdateDto) {
-        Ticket ticketExists = findTicketOrThrow(id);
+    public TicketResponseDto updateDetails(UUID ticketId, TicketDetailsUpdateDto detailsUpdateDto) {
+        Ticket ticketExists = findTicketOrThrow(ticketId);
 
         if(ticketExists.getStatus().equals(TicketStatus.CLOSED)) {
             throw new InvalidTicketStatusException("Ticket can't be updated because it's Closed");
@@ -97,8 +97,8 @@ public class TicketService {
     }
 
     @Transactional
-    public TicketResponseDto assignTechnician(UUID id, UUID technicianId) {
-        Ticket ticketExists = findTicketOrThrow(id);
+    public TicketResponseDto assignTechnician(UUID ticketId, UUID technicianId) {
+        Ticket ticketExists = findTicketOrThrow(ticketId);
         User technicianExists = findUserOrThrow(technicianId);
 
         if(!ticketExists.getStatus().equals(TicketStatus.OPEN)) {
@@ -106,7 +106,7 @@ public class TicketService {
         }
 
         if(ticketExists.getTechnician() != null) {
-            throw new TechnicianAlreadySignedException("Technician already signed to this ticket");
+            throw new TicketAlreadyAssignedException("Ticket already has an assigned technician");
         }
 
         if(!technicianExists.getRole().equals(UserRole.TECHNICIAN)){
@@ -124,27 +124,9 @@ public class TicketService {
     }
 
     @Transactional
-    public TicketResponseDto resolve(UUID id, UUID technicianId) {
-        Ticket ticketExists = findTicketOrThrow(id);
-        User user = findUserOrThrow(technicianId);
-
-        if(!user.getRole().equals(UserRole.TECHNICIAN)) {
-            throw new RoleNotAllowedException("User must be a technician to resolve this ticket");
-        }
-
-        if(!user.isActive()){
-            throw new UserNotActiveException("Technician is not active");
-        }
-
-        if(ticketExists.getTechnician() != null) {
-            if(!ticketExists.getTechnician().getId().equals(user.getId())) {
-                throw new TechnicianNotResponsibleException("Technician not responsible for this ticket");
-            }
-        }
-
-        if(ticketExists.getTechnician() == null) {
-            throw new TechnicianNotResponsibleException("Ticket must have a technician to be resolved");
-        }
+    public TicketResponseDto resolve(UUID ticketId, UUID technicianId) {
+        Ticket ticketExists = findTicketOrThrow(ticketId);
+        User technician = findUserOrThrow(technicianId);
 
         if(ticketExists.getStatus().equals(TicketStatus.RESOLVED)){
             throw new InvalidTicketStatusException("Ticket already resolved");
@@ -154,6 +136,24 @@ public class TicketService {
             throw new InvalidTicketStatusException("Ticket must be In Progress to be resolved");
         }
 
+        if(!technician.getRole().equals(UserRole.TECHNICIAN)) {
+            throw new RoleNotAllowedException("User must be a technician to resolve this ticket");
+        }
+
+        if(!technician.isActive()){
+            throw new UserNotActiveException("Technician is not active");
+        }
+
+        if(ticketExists.getTechnician() != null) {
+            if(!ticketExists.getTechnician().getId().equals(technician.getId())) {
+                throw new TechnicianNotResponsibleException("Technician not responsible for this ticket");
+            }
+        }
+
+        if(ticketExists.getTechnician() == null) {
+            throw new TechnicianNotResponsibleException("Ticket must have a technician to be resolved");
+        }
+
         ticketExists.setStatus(TicketStatus.RESOLVED);
         ticketExists.setResolvedAt(LocalDateTime.now());
         Ticket savedTicket = ticketRepository.save(ticketExists);
@@ -161,11 +161,11 @@ public class TicketService {
     }
 
     @Transactional
-    public TicketResponseDto close(UUID id) {
-        Ticket ticketExists = findTicketOrThrow(id);
+    public TicketResponseDto close(UUID ticketId) {
+        Ticket ticketExists = findTicketOrThrow(ticketId);
 
-        if(ticketExists.getStatus().equals(TicketStatus.OPEN)) {
-            throw new InvalidTicketStatusException("Ticket Open can't be Closed");
+        if(!ticketExists.getStatus().equals(TicketStatus.RESOLVED)) {
+            throw new InvalidTicketStatusException("Ticket must be Resolved to be Closed");
         }
 
         ticketExists.setStatus(TicketStatus.CLOSED);
