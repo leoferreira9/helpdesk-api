@@ -5,6 +5,7 @@ import com.leonardo.helpdesk.dto.response.TicketResponseDto;
 import com.leonardo.helpdesk.dto.update.TicketDetailsUpdateDto;
 import com.leonardo.helpdesk.entity.Ticket;
 import com.leonardo.helpdesk.entity.User;
+import com.leonardo.helpdesk.enums.TicketAction;
 import com.leonardo.helpdesk.enums.TicketStatus;
 import com.leonardo.helpdesk.enums.UserRole;
 import com.leonardo.helpdesk.exception.*;
@@ -25,11 +26,13 @@ public class TicketService {
     private final UserRepository userRepository;
     private final TicketRepository ticketRepository;
     private final TicketMapper ticketMapper;
+    private final TicketHistoryService ticketHistoryService;
 
-    public TicketService(TicketRepository ticketRepository, TicketMapper ticketMapper, UserRepository userRepository) {
+    public TicketService(TicketRepository ticketRepository, TicketMapper ticketMapper, UserRepository userRepository, TicketHistoryService ticketHistoryService) {
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
         this.ticketMapper = ticketMapper;
+        this.ticketHistoryService = ticketHistoryService;
     }
 
     private Ticket findTicketOrThrow(UUID id) {
@@ -55,6 +58,10 @@ public class TicketService {
         ticket.setRequester(requesterExists);
 
         Ticket savedTicket = ticketRepository.save(ticket);
+
+        String ticketHistoryDescription = "Ticket created by requester " + requesterExists.getName();
+        ticketHistoryService.record(ticket, requesterExists, TicketAction.TICKET_CREATED, ticketHistoryDescription);
+
         return ticketMapper.convertToResponseDto(savedTicket);
     }
 
@@ -71,11 +78,16 @@ public class TicketService {
     }
 
     @Transactional
-    public TicketResponseDto updateDetails(UUID ticketId, TicketDetailsUpdateDto detailsUpdateDto) {
+    public TicketResponseDto updateDetails(UUID ticketId, TicketDetailsUpdateDto detailsUpdateDto, UUID updaterId) {
         Ticket ticketExists = findTicketOrThrow(ticketId);
+        User userExists = findUserOrThrow(updaterId);
 
         if(ticketExists.getStatus().equals(TicketStatus.CLOSED)) {
             throw new InvalidTicketStatusException("Ticket can't be updated because it's Closed");
+        }
+
+        if(!userExists.isActive()) {
+            throw new UserNotActiveException("User must be active to update this ticket");
         }
 
         if(detailsUpdateDto != null){
@@ -93,6 +105,12 @@ public class TicketService {
         }
 
         Ticket savedTicket = ticketRepository.save(ticketExists);
+
+
+        String ticketHistoryDescription = "Ticket updated by " + (userExists.getRole().equals(UserRole.TECHNICIAN) ? "technician " : "user ")  + userExists.getName();
+        ticketHistoryService.record(ticketExists, userExists, TicketAction.TICKET_DETAILS_UPDATED, ticketHistoryDescription);
+
+
         return ticketMapper.convertToResponseDto(savedTicket);
     }
 
@@ -120,6 +138,10 @@ public class TicketService {
         ticketExists.setTechnician(technicianExists);
         ticketExists.setStatus(TicketStatus.IN_PROGRESS);
         Ticket savedTicket = ticketRepository.save(ticketExists);
+
+        String ticketHistoryDescription = "Ticket assigned to technician " + technicianExists.getName();
+        ticketHistoryService.record(ticketExists, technicianExists, TicketAction.TICKET_ASSIGNED, ticketHistoryDescription);
+
         return ticketMapper.convertToResponseDto(savedTicket);
     }
 
@@ -157,19 +179,32 @@ public class TicketService {
         ticketExists.setStatus(TicketStatus.RESOLVED);
         ticketExists.setResolvedAt(LocalDateTime.now());
         Ticket savedTicket = ticketRepository.save(ticketExists);
+
+        String ticketHistoryDescription = "Ticket resolved by technician " + technician.getName();
+        ticketHistoryService.record(ticketExists, technician, TicketAction.TICKET_RESOLVED, ticketHistoryDescription);
+
         return ticketMapper.convertToResponseDto(savedTicket);
     }
 
     @Transactional
-    public TicketResponseDto close(UUID ticketId) {
+    public TicketResponseDto close(UUID ticketId, UUID userId) {
         Ticket ticketExists = findTicketOrThrow(ticketId);
+        User userExists = findUserOrThrow(userId);
 
         if(!ticketExists.getStatus().equals(TicketStatus.RESOLVED)) {
             throw new InvalidTicketStatusException("Ticket must be Resolved to be Closed");
         }
 
+        if(!userExists.isActive()) {
+            throw new UserNotActiveException("User must be active to close this ticket");
+        }
+
         ticketExists.setStatus(TicketStatus.CLOSED);
         Ticket savedTicket = ticketRepository.save(ticketExists);
+
+        String ticketHistoryDescription = "Ticket closed by " + userExists.getName();
+        ticketHistoryService.record(ticketExists, userExists, TicketAction.TICKET_CLOSED, ticketHistoryDescription);
+
         return ticketMapper.convertToResponseDto(savedTicket);
     }
 }
