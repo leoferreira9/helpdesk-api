@@ -5,7 +5,6 @@ import com.leonardo.helpdesk.dto.response.UserResponseDto;
 import com.leonardo.helpdesk.dto.update.ChangePasswordUpdateDto;
 import com.leonardo.helpdesk.dto.update.UserUpdateDto;
 import com.leonardo.helpdesk.entity.User;
-import com.leonardo.helpdesk.enums.UserRole;
 import com.leonardo.helpdesk.exception.EmailAlreadyRegisteredException;
 import com.leonardo.helpdesk.exception.ResourceNotFoundException;
 import com.leonardo.helpdesk.mapper.UserMapper;
@@ -43,7 +42,7 @@ public class UserService {
         }
 
         User user = userMapper.convertToEntity(requestDto);
-        user.setRole(UserRole.USER);
+        user.setRole(requestDto.role());
 
         String cryptographedPassword = passwordEncoder.encode(requestDto.password());
         user.setPassword(cryptographedPassword);
