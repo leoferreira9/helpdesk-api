@@ -15,7 +15,7 @@ import java.net.URI;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/tickets")
+@RequestMapping("/api/v1/tickets")
 public class TicketController {
 
     private final TicketService ticketService;
@@ -55,19 +55,19 @@ public class TicketController {
         return ResponseEntity.ok(updatedTicket);
     }
 
-    @PutMapping("/{ticketId}/assign")
+    @PatchMapping("/{ticketId}/assign")
     public ResponseEntity<TicketResponseDto> assignTechnician(@PathVariable UUID ticketId, @RequestParam UUID technicianId) {
         TicketResponseDto assignedTicket = ticketService.assignTechnician(ticketId, technicianId);
         return ResponseEntity.ok(assignedTicket);
     }
 
-    @PutMapping("/{ticketId}/resolve")
+    @PatchMapping("/{ticketId}/resolve")
     public ResponseEntity<TicketResponseDto> resolve(@PathVariable UUID ticketId, @RequestParam UUID technicianId) {
         TicketResponseDto resolvedTicket = ticketService.resolve(ticketId, technicianId);
         return ResponseEntity.ok(resolvedTicket);
     }
 
-    @PutMapping("/{ticketId}/close")
+    @PatchMapping("/{ticketId}/close")
     public ResponseEntity<TicketResponseDto> close(@PathVariable UUID ticketId, @RequestParam UUID userId) {
         TicketResponseDto closedTicket = ticketService.close(ticketId, userId);
         return ResponseEntity.ok(closedTicket);

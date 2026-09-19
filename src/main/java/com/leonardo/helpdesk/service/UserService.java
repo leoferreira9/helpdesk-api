@@ -99,7 +99,7 @@ public class UserService {
     }
 
     @Transactional
-    public void delete(UUID id){
+    public void deactivate(UUID id){
         User userExists = findUserOrThrow(id);
         userExists.setActive(false);
         userRepository.save(userExists);
