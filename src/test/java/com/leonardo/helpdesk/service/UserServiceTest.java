@@ -5,6 +5,7 @@ import com.leonardo.helpdesk.dto.response.UserResponseDto;
 import com.leonardo.helpdesk.entity.User;
 import com.leonardo.helpdesk.enums.UserRole;
 import com.leonardo.helpdesk.exception.EmailAlreadyRegisteredException;
+import com.leonardo.helpdesk.exception.ResourceNotFoundException;
 import com.leonardo.helpdesk.mapper.UserMapper;
 import com.leonardo.helpdesk.repository.UserRepository;
 import org.junit.jupiter.api.Assertions;
@@ -16,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.mockito.Mockito.*;
@@ -113,5 +115,56 @@ class UserServiceTest {
         verify(repository).existsByEmail("email@email.com");
         verify(repository, never()).save(any());
         verifyNoInteractions(mapper, passwordEncoder);
+    }
+
+    @Test
+    void shouldFindUserById() {
+        LocalDateTime createdAt = LocalDateTime.now();
+
+        User user = new User();
+        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+
+        UserResponseDto responseDto = new UserResponseDto(
+                userId,
+                "Name",
+                "email@email.com",
+                UserRole.USER,
+                true,
+                createdAt
+        );
+
+        when(repository.findById(userId))
+                .thenReturn(Optional.of(user));
+
+        when(mapper.convertToResponseDto(user))
+                .thenReturn(responseDto);
+
+        UserResponseDto response = service.findById(userId);
+
+        Assertions.assertEquals(userId, response.id());
+        Assertions.assertEquals("Name", response.name());
+        Assertions.assertEquals("email@email.com", response.email());
+        Assertions.assertEquals(UserRole.USER, response.role());
+        Assertions.assertTrue(response.active());
+        Assertions.assertEquals(createdAt, response.createdAt());
+
+        verify(repository).findById(userId);
+        verify(mapper).convertToResponseDto(user);
+    }
+
+    @Test
+    void shouldThrowExceptionWhenFindingUserById() {
+        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+
+        when(repository.findById(userId))
+                .thenReturn(Optional.empty());
+
+        ResourceNotFoundException exception = Assertions.assertThrows( ResourceNotFoundException.class,
+                () -> service.findById(userId));
+
+        Assertions.assertEquals("User not found with ID: " + userId, exception.getMessage());
+
+        verify(repository).findById(userId);
+        verifyNoInteractions(mapper);
     }
 }
