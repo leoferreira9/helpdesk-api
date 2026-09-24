@@ -14,9 +14,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -165,6 +170,59 @@ class UserServiceTest {
         Assertions.assertEquals("User not found with ID: " + userId, exception.getMessage());
 
         verify(repository).findById(userId);
+        verifyNoInteractions(mapper);
+    }
+
+    @Test
+    void shouldFindAllUsers() {
+        LocalDateTime createdAt = LocalDateTime.now();
+
+        UserResponseDto responseDto = new UserResponseDto(
+                UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c"),
+                "Name",
+                "email@email.com",
+                UserRole.USER,
+                true,
+                createdAt
+        );
+
+        User user = new User();
+
+        PageRequest pageRequest = PageRequest.of(0, 10, Sort.by("name").ascending());
+        Page<User> pageable = new PageImpl<>(List.of(user), pageRequest, 1);
+
+        when(repository.findAll(pageRequest))
+                .thenReturn(pageable);
+
+        when(mapper.convertToResponseDto(user))
+                .thenReturn(responseDto);
+
+        Page<UserResponseDto> result = service.findAll(pageRequest);
+
+        Assertions.assertEquals(1, result.getTotalElements());
+        Assertions.assertEquals(UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c"), result.getContent().getFirst().id());
+        Assertions.assertEquals("Name", result.getContent().getFirst().name());
+        Assertions.assertEquals("email@email.com", result.getContent().getFirst().email());
+        Assertions.assertEquals(UserRole.USER, result.getContent().getFirst().role());
+        Assertions.assertEquals(createdAt, result.getContent().getFirst().createdAt());
+        Assertions.assertTrue(result.getContent().getFirst().active());
+
+        verify(repository).findAll(pageRequest);
+        verify(mapper).convertToResponseDto(user);
+    }
+
+    @Test
+    void shouldReturnEmptyPageWhenFindingAllUsers() {
+        PageRequest pageRequest = PageRequest.of(0, 10, Sort.by("name").ascending());
+
+        when(repository.findAll(pageRequest))
+                .thenReturn(Page.empty(pageRequest));
+
+        Page<UserResponseDto> result = service.findAll(pageRequest);
+
+        Assertions.assertTrue(result.isEmpty());
+
+        verify(repository).findAll(pageRequest);
         verifyNoInteractions(mapper);
     }
 }
