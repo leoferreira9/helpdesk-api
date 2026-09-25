@@ -2,6 +2,7 @@ package com.leonardo.helpdesk.service;
 
 import com.leonardo.helpdesk.dto.request.UserRequestDto;
 import com.leonardo.helpdesk.dto.response.UserResponseDto;
+import com.leonardo.helpdesk.dto.update.UserUpdateDto;
 import com.leonardo.helpdesk.entity.User;
 import com.leonardo.helpdesk.enums.UserRole;
 import com.leonardo.helpdesk.exception.EmailAlreadyRegisteredException;
@@ -224,5 +225,375 @@ class UserServiceTest {
 
         verify(repository).findAll(pageRequest);
         verifyNoInteractions(mapper);
+    }
+
+    @Test
+    void shouldUpdateUser() {
+        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UserUpdateDto userUpdateDto = new UserUpdateDto("Name 2", "email2@email.com");
+
+        User user = new User();
+        user.setName("Name");
+        user.setEmail("email@email.com");
+
+        LocalDateTime createdAt = LocalDateTime.now();
+
+        UserResponseDto responseDto = new UserResponseDto(
+                userId,
+                "Name 2",
+                "email2@email.com",
+                UserRole.USER,
+                true,
+                createdAt
+        );
+
+        when(repository.findById(userId))
+                .thenReturn(Optional.of(user));
+
+        when(mapper.convertToResponseDto(user))
+                .thenReturn(responseDto);
+
+        when(repository.save(user))
+                .thenReturn(user);
+
+        when(repository.existsByEmail(userUpdateDto.email()))
+                .thenReturn(false);
+
+        UserResponseDto result = service.update(userId, userUpdateDto);
+
+        Assertions.assertEquals("Name 2", user.getName());
+        Assertions.assertEquals("email2@email.com", user.getEmail());
+        Assertions.assertEquals("Name 2", result.name());
+        Assertions.assertEquals("email2@email.com", result.email());
+        Assertions.assertEquals(UserRole.USER, result.role());
+        Assertions.assertEquals(createdAt, result.createdAt());
+        Assertions.assertTrue(result.active());
+
+        verify(repository).existsByEmail(userUpdateDto.email());
+        verify(repository).findById(userId);
+        verify(mapper).convertToResponseDto(user);
+        verify(repository).save(user);
+    }
+
+    @Test
+    void shouldThrowUserNotFoundWhenUpdatingUser() {
+        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UserUpdateDto userUpdateDto = new UserUpdateDto("Name 2", "email2@email.com");
+
+
+        when(repository.findById(userId))
+                .thenReturn(Optional.empty());
+
+        ResourceNotFoundException exception = Assertions.assertThrows(ResourceNotFoundException.class,
+                () -> service.update(userId, userUpdateDto));
+
+        Assertions.assertEquals("User not found with ID: " + userId, exception.getMessage());
+
+
+        verify(repository).findById(userId);
+        verifyNoInteractions(mapper);
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void shouldThrowEmailAlreadyRegisteredWhenUpdatingUser() {
+        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UserUpdateDto userUpdateDto = new UserUpdateDto("Name 2", "email2@email.com");
+        User user = new User();
+        user.setEmail("email@email.com");
+
+        when(repository.findById(userId))
+                .thenReturn(Optional.of(user));
+
+        when(repository.existsByEmail(userUpdateDto.email()))
+                .thenReturn(true);
+
+        EmailAlreadyRegisteredException exception = Assertions.assertThrows(EmailAlreadyRegisteredException.class,
+                () -> service.update(userId, userUpdateDto));
+
+        Assertions.assertEquals("Email " + userUpdateDto.email() + " already registered", exception.getMessage());
+
+        verify(repository).existsByEmail(userUpdateDto.email());
+        verify(repository).findById(userId);
+        verifyNoInteractions(mapper);
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void shouldAllowUpdatingUserWithSameEmail() {
+        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UserUpdateDto userUpdateDto = new UserUpdateDto("Name 2", "email2@email.com");
+
+        User user = new User();
+        user.setName("Name");
+        user.setEmail("email2@email.com");
+
+        LocalDateTime createdAt = LocalDateTime.now();
+
+        UserResponseDto responseDto = new UserResponseDto(
+                userId,
+                "Name 2",
+                "email2@email.com",
+                UserRole.USER,
+                true,
+                createdAt
+        );
+
+        when(repository.findById(userId))
+                .thenReturn(Optional.of(user));
+
+        when(mapper.convertToResponseDto(user))
+                .thenReturn(responseDto);
+
+        when(repository.save(user))
+                .thenReturn(user);
+
+        when(repository.existsByEmail(userUpdateDto.email()))
+                .thenReturn(true);
+
+        UserResponseDto result = service.update(userId, userUpdateDto);
+
+        Assertions.assertEquals("Name 2", user.getName());
+        Assertions.assertEquals("email2@email.com", user.getEmail());
+        Assertions.assertEquals("Name 2", result.name());
+        Assertions.assertEquals("email2@email.com", result.email());
+        Assertions.assertEquals(UserRole.USER, result.role());
+        Assertions.assertEquals(createdAt, result.createdAt());
+        Assertions.assertTrue(result.active());
+
+        verify(repository).existsByEmail(userUpdateDto.email());
+        verify(repository).findById(userId);
+        verify(mapper).convertToResponseDto(user);
+        verify(repository).save(user);
+    }
+
+    @Test
+    void shouldUpdateOnlyEmailWhenNameIsNull() {
+        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UserUpdateDto userUpdateDto = new UserUpdateDto(null, "email2@email.com");
+
+        User user = new User();
+        user.setName("Name");
+        user.setEmail("email@email.com");
+
+        LocalDateTime createdAt = LocalDateTime.now();
+
+        UserResponseDto responseDto = new UserResponseDto(
+                userId,
+                "Name",
+                "email2@email.com",
+                UserRole.USER,
+                true,
+                createdAt
+        );
+
+        when(repository.findById(userId))
+                .thenReturn(Optional.of(user));
+
+        when(mapper.convertToResponseDto(user))
+                .thenReturn(responseDto);
+
+        when(repository.save(user))
+                .thenReturn(user);
+
+        when(repository.existsByEmail(userUpdateDto.email()))
+                .thenReturn(false);
+
+        UserResponseDto result = service.update(userId, userUpdateDto);
+
+        Assertions.assertEquals("Name", user.getName());
+        Assertions.assertEquals("email2@email.com", user.getEmail());
+        Assertions.assertEquals("Name", result.name());
+        Assertions.assertEquals("email2@email.com", result.email());
+        Assertions.assertEquals(UserRole.USER, result.role());
+        Assertions.assertEquals(createdAt, result.createdAt());
+        Assertions.assertTrue(result.active());
+
+        verify(repository).existsByEmail(userUpdateDto.email());
+        verify(repository).findById(userId);
+        verify(mapper).convertToResponseDto(user);
+        verify(repository).save(user);
+    }
+
+    @Test
+    void shouldUpdateOnlyEmailWhenNameIsBlank() {
+        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UserUpdateDto userUpdateDto = new UserUpdateDto("", "email2@email.com");
+
+        User user = new User();
+        user.setName("Name");
+        user.setEmail("email@email.com");
+
+        LocalDateTime createdAt = LocalDateTime.now();
+
+        UserResponseDto responseDto = new UserResponseDto(
+                userId,
+                "Name",
+                "email2@email.com",
+                UserRole.USER,
+                true,
+                createdAt
+        );
+
+        when(repository.findById(userId))
+                .thenReturn(Optional.of(user));
+
+        when(mapper.convertToResponseDto(user))
+                .thenReturn(responseDto);
+
+        when(repository.save(user))
+                .thenReturn(user);
+
+        when(repository.existsByEmail(userUpdateDto.email()))
+                .thenReturn(false);
+
+        UserResponseDto result = service.update(userId, userUpdateDto);
+
+        Assertions.assertEquals("Name", user.getName());
+        Assertions.assertEquals("email2@email.com", user.getEmail());
+        Assertions.assertEquals("Name", result.name());
+        Assertions.assertEquals("email2@email.com", result.email());
+        Assertions.assertEquals(UserRole.USER, result.role());
+        Assertions.assertEquals(createdAt, result.createdAt());
+        Assertions.assertTrue(result.active());
+
+        verify(repository).existsByEmail(userUpdateDto.email());
+        verify(repository).findById(userId);
+        verify(mapper).convertToResponseDto(user);
+        verify(repository).save(user);
+    }
+
+    @Test
+    void shouldUpdateOnlyNameWhenEmailIsNull() {
+        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UserUpdateDto userUpdateDto = new UserUpdateDto("Name 2", null);
+
+        User user = new User();
+        user.setName("Name");
+        user.setEmail("email@email.com");
+
+        LocalDateTime createdAt = LocalDateTime.now();
+
+        UserResponseDto responseDto = new UserResponseDto(
+                userId,
+                "Name 2",
+                "email@email.com",
+                UserRole.USER,
+                true,
+                createdAt
+        );
+
+        when(repository.findById(userId))
+                .thenReturn(Optional.of(user));
+
+        when(mapper.convertToResponseDto(user))
+                .thenReturn(responseDto);
+
+        when(repository.save(user))
+                .thenReturn(user);
+
+        UserResponseDto result = service.update(userId, userUpdateDto);
+
+        Assertions.assertEquals("Name 2", user.getName());
+        Assertions.assertEquals("email@email.com", user.getEmail());
+        Assertions.assertEquals("Name 2", result.name());
+        Assertions.assertEquals("email@email.com", result.email());
+        Assertions.assertEquals(UserRole.USER, result.role());
+        Assertions.assertEquals(createdAt, result.createdAt());
+        Assertions.assertTrue(result.active());
+
+        verify(repository, never()).existsByEmail(any());
+        verify(repository).findById(userId);
+        verify(mapper).convertToResponseDto(user);
+        verify(repository).save(user);
+    }
+
+    @Test
+    void shouldUpdateOnlyNameWhenEmailIsBlank() {
+        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UserUpdateDto userUpdateDto = new UserUpdateDto("Name 2", "");
+
+        User user = new User();
+        user.setName("Name");
+        user.setEmail("email@email.com");
+
+        LocalDateTime createdAt = LocalDateTime.now();
+
+        UserResponseDto responseDto = new UserResponseDto(
+                userId,
+                "Name 2",
+                "email@email.com",
+                UserRole.USER,
+                true,
+                createdAt
+        );
+
+        when(repository.findById(userId))
+                .thenReturn(Optional.of(user));
+
+        when(mapper.convertToResponseDto(user))
+                .thenReturn(responseDto);
+
+        when(repository.save(user))
+                .thenReturn(user);
+
+        UserResponseDto result = service.update(userId, userUpdateDto);
+
+        Assertions.assertEquals("Name 2", user.getName());
+        Assertions.assertEquals("email@email.com", user.getEmail());
+        Assertions.assertEquals("Name 2", result.name());
+        Assertions.assertEquals("email@email.com", result.email());
+        Assertions.assertEquals(UserRole.USER, result.role());
+        Assertions.assertEquals(createdAt, result.createdAt());
+        Assertions.assertTrue(result.active());
+
+        verify(repository, never()).existsByEmail(any());
+        verify(repository).findById(userId);
+        verify(mapper).convertToResponseDto(user);
+        verify(repository).save(user);
+    }
+
+    @Test
+    void shouldKeepUserUnchangedWhenUpdateDtoIsNull() {
+        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        LocalDateTime createdAt = LocalDateTime.now();
+        UserUpdateDto userUpdateDto = null;
+
+        UserResponseDto responseDto = new UserResponseDto(
+                userId,
+                "Name",
+                "email@email.com",
+                UserRole.USER,
+                true,
+                createdAt
+        );
+
+        User user = new User();
+        user.setName("Name");
+        user.setEmail("email@email.com");
+
+        when(repository.findById(userId))
+                .thenReturn(Optional.of(user));
+
+        when(mapper.convertToResponseDto(user))
+                .thenReturn(responseDto);
+
+        when(repository.save(user))
+                .thenReturn(user);
+
+        UserResponseDto result = service.update(userId, userUpdateDto);
+
+        Assertions.assertEquals("Name", user.getName());
+        Assertions.assertEquals("email@email.com", user.getEmail());
+        Assertions.assertEquals("Name", result.name());
+        Assertions.assertEquals("email@email.com", result.email());
+        Assertions.assertEquals(UserRole.USER, result.role());
+        Assertions.assertEquals(createdAt, result.createdAt());
+        Assertions.assertTrue(result.active());
+
+        verify(repository, never()).existsByEmail(any());
+        verify(repository).findById(userId);
+        verify(mapper).convertToResponseDto(user);
+        verify(repository).save(user);
     }
 }
