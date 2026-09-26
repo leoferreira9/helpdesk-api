@@ -11,6 +11,7 @@ import com.leonardo.helpdesk.exception.ResourceNotFoundException;
 import com.leonardo.helpdesk.mapper.UserMapper;
 import com.leonardo.helpdesk.repository.UserRepository;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -44,33 +45,49 @@ class UserServiceTest {
     @Mock
     public PasswordEncoder passwordEncoder;
 
+    private static final UUID USER_ID = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+    private static final String USER_NAME = "Name";
+    private static final String USER_EMAIL = "email@email.com";
+    private static final String UPDATED_NAME = "Name 2";
+    private static final String UPDATED_EMAIL = "email2@email.com";
+    private static final String USER_PASSWORD = "Password";
+    private static final String ORIGINAL_PASSWORD = "Original password";
+    private static final String NEW_PASSWORD = "teste";
+    private static final String ENCODED_PASSWORD = "$2a$10$dXJ3w46eJZ9vCBq7f8b9e.aX6.D9g7W/SgqR2d8yHj9Y0Z4E7b7q6";
+    private static final LocalDateTime CREATED_AT = LocalDateTime.of(2026, 1, 1, 12, 0);
+    private static final PageRequest PAGE_REQUEST = PageRequest.of(0, 10, Sort.by("name").ascending());
+    private User user;
+
+    @BeforeEach
+    void setUp() {
+        user = new User();
+        user.setName(USER_NAME);
+        user.setEmail(USER_EMAIL);
+        user.setPassword(ORIGINAL_PASSWORD);
+        user.setRole(UserRole.USER);
+        user.setActive(true);
+    }
+
     @Test
     void shouldCreateUser() {
-
-        LocalDateTime createdAt = LocalDateTime.now();
-
-        User user = new User();
-
         UserRequestDto requestDto = new UserRequestDto(
-                "Name",
-                "email@email.com",
-                "Password",
+                USER_NAME,
+                USER_EMAIL,
+                USER_PASSWORD,
                 UserRole.USER
         );
 
         UserResponseDto responseDto = new UserResponseDto(
-                UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c"),
-                "Name",
-                "email@email.com",
+                USER_ID,
+                USER_NAME,
+                USER_EMAIL,
                 UserRole.USER,
                 true,
-                createdAt
+                CREATED_AT
         );
 
-        String exampleHash = "$2a$10$dXJ3w46eJZ9vCBq7f8b9e.aX6.D9g7W/SgqR2d8yHj9Y0Z4E7b7q6";
-
         when(passwordEncoder.encode(requestDto.password()))
-                .thenReturn(exampleHash);
+                .thenReturn(ENCODED_PASSWORD);
 
         when(mapper.convertToEntity(requestDto))
                 .thenReturn(user);
@@ -81,19 +98,19 @@ class UserServiceTest {
         when(repository.save(user))
                 .thenReturn(user);
 
-        when(repository.existsByEmail("email@email.com"))
+        when(repository.existsByEmail(USER_EMAIL))
                 .thenReturn(false);
 
         UserResponseDto resultado = service.create(requestDto);
 
-        Assertions.assertEquals(UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c"), resultado.id());
-        Assertions.assertEquals("Name", resultado.name());
-        Assertions.assertEquals("email@email.com", resultado.email());
+        Assertions.assertEquals(USER_ID, resultado.id());
+        Assertions.assertEquals(USER_NAME, resultado.name());
+        Assertions.assertEquals(USER_EMAIL, resultado.email());
         Assertions.assertEquals(UserRole.USER, resultado.role());
-        Assertions.assertEquals(createdAt, resultado.createdAt());
+        Assertions.assertEquals(CREATED_AT, resultado.createdAt());
         Assertions.assertTrue(resultado.active());
         Assertions.assertEquals(UserRole.USER, user.getRole());
-        Assertions.assertEquals(exampleHash, user.getPassword());
+        Assertions.assertEquals(ENCODED_PASSWORD, user.getPassword());
 
         verify(repository).existsByEmail(requestDto.email());
         verify(repository).save(user);
@@ -105,9 +122,9 @@ class UserServiceTest {
     @Test
     void shouldThrowExceptionWhenCreatingUserWithEmailAlreadyRegistered() {
         UserRequestDto requestDto = new UserRequestDto(
-                "Name",
-                "email@email.com",
-                "Password",
+                USER_NAME,
+                USER_EMAIL,
+                USER_PASSWORD,
                 UserRole.USER
         );
 
@@ -117,138 +134,123 @@ class UserServiceTest {
         EmailAlreadyRegisteredException exception = Assertions.assertThrows(EmailAlreadyRegisteredException.class,
                 () -> service.create(requestDto));
 
-        Assertions.assertEquals("Email email@email.com already registered", exception.getMessage());
+        Assertions.assertEquals("Email " + USER_EMAIL + " already registered", exception.getMessage());
 
-        verify(repository).existsByEmail("email@email.com");
+        verify(repository).existsByEmail(USER_EMAIL);
         verify(repository, never()).save(any());
         verifyNoInteractions(mapper, passwordEncoder);
     }
 
     @Test
     void shouldFindUserById() {
-        LocalDateTime createdAt = LocalDateTime.now();
 
-        User user = new User();
-        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
 
         UserResponseDto responseDto = new UserResponseDto(
-                userId,
-                "Name",
-                "email@email.com",
+                USER_ID,
+                USER_NAME,
+                USER_EMAIL,
                 UserRole.USER,
                 true,
-                createdAt
+                CREATED_AT
         );
 
-        when(repository.findById(userId))
+        when(repository.findById(USER_ID))
                 .thenReturn(Optional.of(user));
 
         when(mapper.convertToResponseDto(user))
                 .thenReturn(responseDto);
 
-        UserResponseDto response = service.findById(userId);
+        UserResponseDto response = service.findById(USER_ID);
 
-        Assertions.assertEquals(userId, response.id());
-        Assertions.assertEquals("Name", response.name());
-        Assertions.assertEquals("email@email.com", response.email());
+        Assertions.assertEquals(USER_ID, response.id());
+        Assertions.assertEquals(USER_NAME, response.name());
+        Assertions.assertEquals(USER_EMAIL, response.email());
         Assertions.assertEquals(UserRole.USER, response.role());
         Assertions.assertTrue(response.active());
-        Assertions.assertEquals(createdAt, response.createdAt());
+        Assertions.assertEquals(CREATED_AT, response.createdAt());
 
-        verify(repository).findById(userId);
+        verify(repository).findById(USER_ID);
         verify(mapper).convertToResponseDto(user);
     }
 
     @Test
     void shouldThrowExceptionWhenFindingUserById() {
-        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
 
-        when(repository.findById(userId))
+        when(repository.findById(USER_ID))
                 .thenReturn(Optional.empty());
 
         ResourceNotFoundException exception = Assertions.assertThrows( ResourceNotFoundException.class,
-                () -> service.findById(userId));
+                () -> service.findById(USER_ID));
 
-        Assertions.assertEquals("User not found with ID: " + userId, exception.getMessage());
+        Assertions.assertEquals("User not found with ID: " + USER_ID, exception.getMessage());
 
-        verify(repository).findById(userId);
+        verify(repository).findById(USER_ID);
         verifyNoInteractions(mapper);
     }
 
     @Test
     void shouldFindAllUsers() {
-        LocalDateTime createdAt = LocalDateTime.now();
 
         UserResponseDto responseDto = new UserResponseDto(
-                UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c"),
-                "Name",
-                "email@email.com",
+                USER_ID,
+                USER_NAME,
+                USER_EMAIL,
                 UserRole.USER,
                 true,
-                createdAt
+                CREATED_AT
         );
 
-        User user = new User();
 
-        PageRequest pageRequest = PageRequest.of(0, 10, Sort.by("name").ascending());
-        Page<User> pageable = new PageImpl<>(List.of(user), pageRequest, 1);
+        Page<User> pageable = new PageImpl<>(List.of(user), PAGE_REQUEST, 1);
 
-        when(repository.findAll(pageRequest))
+        when(repository.findAll(PAGE_REQUEST))
                 .thenReturn(pageable);
 
         when(mapper.convertToResponseDto(user))
                 .thenReturn(responseDto);
 
-        Page<UserResponseDto> result = service.findAll(pageRequest);
+        Page<UserResponseDto> result = service.findAll(PAGE_REQUEST);
 
         Assertions.assertEquals(1, result.getTotalElements());
-        Assertions.assertEquals(UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c"), result.getContent().getFirst().id());
-        Assertions.assertEquals("Name", result.getContent().getFirst().name());
-        Assertions.assertEquals("email@email.com", result.getContent().getFirst().email());
+        Assertions.assertEquals(USER_ID, result.getContent().getFirst().id());
+        Assertions.assertEquals(USER_NAME, result.getContent().getFirst().name());
+        Assertions.assertEquals(USER_EMAIL, result.getContent().getFirst().email());
         Assertions.assertEquals(UserRole.USER, result.getContent().getFirst().role());
-        Assertions.assertEquals(createdAt, result.getContent().getFirst().createdAt());
+        Assertions.assertEquals(CREATED_AT, result.getContent().getFirst().createdAt());
         Assertions.assertTrue(result.getContent().getFirst().active());
 
-        verify(repository).findAll(pageRequest);
+        verify(repository).findAll(PAGE_REQUEST);
         verify(mapper).convertToResponseDto(user);
     }
 
     @Test
     void shouldReturnEmptyPageWhenFindingAllUsers() {
-        PageRequest pageRequest = PageRequest.of(0, 10, Sort.by("name").ascending());
 
-        when(repository.findAll(pageRequest))
-                .thenReturn(Page.empty(pageRequest));
+        when(repository.findAll(PAGE_REQUEST))
+                .thenReturn(Page.empty(PAGE_REQUEST));
 
-        Page<UserResponseDto> result = service.findAll(pageRequest);
+        Page<UserResponseDto> result = service.findAll(PAGE_REQUEST);
 
         Assertions.assertTrue(result.isEmpty());
 
-        verify(repository).findAll(pageRequest);
+        verify(repository).findAll(PAGE_REQUEST);
         verifyNoInteractions(mapper);
     }
 
     @Test
     void shouldUpdateUser() {
-        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
-        UserUpdateDto userUpdateDto = new UserUpdateDto("Name 2", "email2@email.com");
-
-        User user = new User();
-        user.setName("Name");
-        user.setEmail("email@email.com");
-
-        LocalDateTime createdAt = LocalDateTime.now();
+        UserUpdateDto userUpdateDto = new UserUpdateDto(UPDATED_NAME, UPDATED_EMAIL);
 
         UserResponseDto responseDto = new UserResponseDto(
-                userId,
-                "Name 2",
-                "email2@email.com",
+                USER_ID,
+                UPDATED_NAME,
+                UPDATED_EMAIL,
                 UserRole.USER,
                 true,
-                createdAt
+                CREATED_AT
         );
 
-        when(repository.findById(userId))
+        when(repository.findById(USER_ID))
                 .thenReturn(Optional.of(user));
 
         when(mapper.convertToResponseDto(user))
@@ -260,87 +262,77 @@ class UserServiceTest {
         when(repository.existsByEmail(userUpdateDto.email()))
                 .thenReturn(false);
 
-        UserResponseDto result = service.update(userId, userUpdateDto);
+        UserResponseDto result = service.update(USER_ID, userUpdateDto);
 
-        Assertions.assertEquals("Name 2", user.getName());
-        Assertions.assertEquals("email2@email.com", user.getEmail());
-        Assertions.assertEquals("Name 2", result.name());
-        Assertions.assertEquals("email2@email.com", result.email());
+        Assertions.assertEquals(UPDATED_NAME, user.getName());
+        Assertions.assertEquals(UPDATED_EMAIL, user.getEmail());
+        Assertions.assertEquals(UPDATED_NAME, result.name());
+        Assertions.assertEquals(UPDATED_EMAIL, result.email());
         Assertions.assertEquals(UserRole.USER, result.role());
-        Assertions.assertEquals(createdAt, result.createdAt());
+        Assertions.assertEquals(CREATED_AT, result.createdAt());
         Assertions.assertTrue(result.active());
 
         verify(repository).existsByEmail(userUpdateDto.email());
-        verify(repository).findById(userId);
+        verify(repository).findById(USER_ID);
         verify(mapper).convertToResponseDto(user);
         verify(repository).save(user);
     }
 
     @Test
     void shouldThrowUserNotFoundWhenUpdatingUser() {
-        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
-        UserUpdateDto userUpdateDto = new UserUpdateDto("Name 2", "email2@email.com");
+        UserUpdateDto userUpdateDto = new UserUpdateDto(UPDATED_NAME, UPDATED_EMAIL);
 
 
-        when(repository.findById(userId))
+        when(repository.findById(USER_ID))
                 .thenReturn(Optional.empty());
 
         ResourceNotFoundException exception = Assertions.assertThrows(ResourceNotFoundException.class,
-                () -> service.update(userId, userUpdateDto));
+                () -> service.update(USER_ID, userUpdateDto));
 
-        Assertions.assertEquals("User not found with ID: " + userId, exception.getMessage());
+        Assertions.assertEquals("User not found with ID: " + USER_ID, exception.getMessage());
 
 
-        verify(repository).findById(userId);
+        verify(repository).findById(USER_ID);
         verifyNoInteractions(mapper);
         verify(repository, never()).save(any());
     }
 
     @Test
     void shouldThrowEmailAlreadyRegisteredWhenUpdatingUser() {
-        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
-        UserUpdateDto userUpdateDto = new UserUpdateDto("Name 2", "email2@email.com");
-        User user = new User();
-        user.setEmail("email@email.com");
-
-        when(repository.findById(userId))
+        UserUpdateDto userUpdateDto = new UserUpdateDto(UPDATED_NAME, UPDATED_EMAIL);
+        when(repository.findById(USER_ID))
                 .thenReturn(Optional.of(user));
 
         when(repository.existsByEmail(userUpdateDto.email()))
                 .thenReturn(true);
 
         EmailAlreadyRegisteredException exception = Assertions.assertThrows(EmailAlreadyRegisteredException.class,
-                () -> service.update(userId, userUpdateDto));
+                () -> service.update(USER_ID, userUpdateDto));
 
         Assertions.assertEquals("Email " + userUpdateDto.email() + " already registered", exception.getMessage());
 
         verify(repository).existsByEmail(userUpdateDto.email());
-        verify(repository).findById(userId);
+        verify(repository).findById(USER_ID);
         verifyNoInteractions(mapper);
         verify(repository, never()).save(any());
     }
 
     @Test
     void shouldAllowUpdatingUserWithSameEmail() {
-        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
-        UserUpdateDto userUpdateDto = new UserUpdateDto("Name 2", "email2@email.com");
+        UserUpdateDto userUpdateDto = new UserUpdateDto(UPDATED_NAME, UPDATED_EMAIL);
 
-        User user = new User();
-        user.setName("Name");
-        user.setEmail("email2@email.com");
-
-        LocalDateTime createdAt = LocalDateTime.now();
+        user.setEmail(UPDATED_EMAIL);
 
         UserResponseDto responseDto = new UserResponseDto(
-                userId,
-                "Name 2",
-                "email2@email.com",
+                USER_ID,
+                UPDATED_NAME,
+                UPDATED_EMAIL,
                 UserRole.USER,
                 true,
-                createdAt
+                CREATED_AT
         );
 
-        when(repository.findById(userId))
+        when(repository.findById(USER_ID))
                 .thenReturn(Optional.of(user));
 
         when(mapper.convertToResponseDto(user))
@@ -352,43 +344,36 @@ class UserServiceTest {
         when(repository.existsByEmail(userUpdateDto.email()))
                 .thenReturn(true);
 
-        UserResponseDto result = service.update(userId, userUpdateDto);
+        UserResponseDto result = service.update(USER_ID, userUpdateDto);
 
-        Assertions.assertEquals("Name 2", user.getName());
-        Assertions.assertEquals("email2@email.com", user.getEmail());
-        Assertions.assertEquals("Name 2", result.name());
-        Assertions.assertEquals("email2@email.com", result.email());
+        Assertions.assertEquals(UPDATED_NAME, user.getName());
+        Assertions.assertEquals(UPDATED_EMAIL, user.getEmail());
+        Assertions.assertEquals(UPDATED_NAME, result.name());
+        Assertions.assertEquals(UPDATED_EMAIL, result.email());
         Assertions.assertEquals(UserRole.USER, result.role());
-        Assertions.assertEquals(createdAt, result.createdAt());
+        Assertions.assertEquals(CREATED_AT, result.createdAt());
         Assertions.assertTrue(result.active());
 
         verify(repository).existsByEmail(userUpdateDto.email());
-        verify(repository).findById(userId);
+        verify(repository).findById(USER_ID);
         verify(mapper).convertToResponseDto(user);
         verify(repository).save(user);
     }
 
     @Test
     void shouldUpdateOnlyEmailWhenNameIsNull() {
-        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
-        UserUpdateDto userUpdateDto = new UserUpdateDto(null, "email2@email.com");
-
-        User user = new User();
-        user.setName("Name");
-        user.setEmail("email@email.com");
-
-        LocalDateTime createdAt = LocalDateTime.now();
+        UserUpdateDto userUpdateDto = new UserUpdateDto(null, UPDATED_EMAIL);
 
         UserResponseDto responseDto = new UserResponseDto(
-                userId,
-                "Name",
-                "email2@email.com",
+                USER_ID,
+                USER_NAME,
+                UPDATED_EMAIL,
                 UserRole.USER,
                 true,
-                createdAt
+                CREATED_AT
         );
 
-        when(repository.findById(userId))
+        when(repository.findById(USER_ID))
                 .thenReturn(Optional.of(user));
 
         when(mapper.convertToResponseDto(user))
@@ -400,43 +385,36 @@ class UserServiceTest {
         when(repository.existsByEmail(userUpdateDto.email()))
                 .thenReturn(false);
 
-        UserResponseDto result = service.update(userId, userUpdateDto);
+        UserResponseDto result = service.update(USER_ID, userUpdateDto);
 
-        Assertions.assertEquals("Name", user.getName());
-        Assertions.assertEquals("email2@email.com", user.getEmail());
-        Assertions.assertEquals("Name", result.name());
-        Assertions.assertEquals("email2@email.com", result.email());
+        Assertions.assertEquals(USER_NAME, user.getName());
+        Assertions.assertEquals(UPDATED_EMAIL, user.getEmail());
+        Assertions.assertEquals(USER_NAME, result.name());
+        Assertions.assertEquals(UPDATED_EMAIL, result.email());
         Assertions.assertEquals(UserRole.USER, result.role());
-        Assertions.assertEquals(createdAt, result.createdAt());
+        Assertions.assertEquals(CREATED_AT, result.createdAt());
         Assertions.assertTrue(result.active());
 
         verify(repository).existsByEmail(userUpdateDto.email());
-        verify(repository).findById(userId);
+        verify(repository).findById(USER_ID);
         verify(mapper).convertToResponseDto(user);
         verify(repository).save(user);
     }
 
     @Test
     void shouldUpdateOnlyEmailWhenNameIsBlank() {
-        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
-        UserUpdateDto userUpdateDto = new UserUpdateDto("", "email2@email.com");
-
-        User user = new User();
-        user.setName("Name");
-        user.setEmail("email@email.com");
-
-        LocalDateTime createdAt = LocalDateTime.now();
+        UserUpdateDto userUpdateDto = new UserUpdateDto("", UPDATED_EMAIL);
 
         UserResponseDto responseDto = new UserResponseDto(
-                userId,
-                "Name",
-                "email2@email.com",
+                USER_ID,
+                USER_NAME,
+                UPDATED_EMAIL,
                 UserRole.USER,
                 true,
-                createdAt
+                CREATED_AT
         );
 
-        when(repository.findById(userId))
+        when(repository.findById(USER_ID))
                 .thenReturn(Optional.of(user));
 
         when(mapper.convertToResponseDto(user))
@@ -448,43 +426,36 @@ class UserServiceTest {
         when(repository.existsByEmail(userUpdateDto.email()))
                 .thenReturn(false);
 
-        UserResponseDto result = service.update(userId, userUpdateDto);
+        UserResponseDto result = service.update(USER_ID, userUpdateDto);
 
-        Assertions.assertEquals("Name", user.getName());
-        Assertions.assertEquals("email2@email.com", user.getEmail());
-        Assertions.assertEquals("Name", result.name());
-        Assertions.assertEquals("email2@email.com", result.email());
+        Assertions.assertEquals(USER_NAME, user.getName());
+        Assertions.assertEquals(UPDATED_EMAIL, user.getEmail());
+        Assertions.assertEquals(USER_NAME, result.name());
+        Assertions.assertEquals(UPDATED_EMAIL, result.email());
         Assertions.assertEquals(UserRole.USER, result.role());
-        Assertions.assertEquals(createdAt, result.createdAt());
+        Assertions.assertEquals(CREATED_AT, result.createdAt());
         Assertions.assertTrue(result.active());
 
         verify(repository).existsByEmail(userUpdateDto.email());
-        verify(repository).findById(userId);
+        verify(repository).findById(USER_ID);
         verify(mapper).convertToResponseDto(user);
         verify(repository).save(user);
     }
 
     @Test
     void shouldUpdateOnlyNameWhenEmailIsNull() {
-        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
-        UserUpdateDto userUpdateDto = new UserUpdateDto("Name 2", null);
-
-        User user = new User();
-        user.setName("Name");
-        user.setEmail("email@email.com");
-
-        LocalDateTime createdAt = LocalDateTime.now();
+        UserUpdateDto userUpdateDto = new UserUpdateDto(UPDATED_NAME, null);
 
         UserResponseDto responseDto = new UserResponseDto(
-                userId,
-                "Name 2",
-                "email@email.com",
+                USER_ID,
+                UPDATED_NAME,
+                USER_EMAIL,
                 UserRole.USER,
                 true,
-                createdAt
+                CREATED_AT
         );
 
-        when(repository.findById(userId))
+        when(repository.findById(USER_ID))
                 .thenReturn(Optional.of(user));
 
         when(mapper.convertToResponseDto(user))
@@ -493,43 +464,36 @@ class UserServiceTest {
         when(repository.save(user))
                 .thenReturn(user);
 
-        UserResponseDto result = service.update(userId, userUpdateDto);
+        UserResponseDto result = service.update(USER_ID, userUpdateDto);
 
-        Assertions.assertEquals("Name 2", user.getName());
-        Assertions.assertEquals("email@email.com", user.getEmail());
-        Assertions.assertEquals("Name 2", result.name());
-        Assertions.assertEquals("email@email.com", result.email());
+        Assertions.assertEquals(UPDATED_NAME, user.getName());
+        Assertions.assertEquals(USER_EMAIL, user.getEmail());
+        Assertions.assertEquals(UPDATED_NAME, result.name());
+        Assertions.assertEquals(USER_EMAIL, result.email());
         Assertions.assertEquals(UserRole.USER, result.role());
-        Assertions.assertEquals(createdAt, result.createdAt());
+        Assertions.assertEquals(CREATED_AT, result.createdAt());
         Assertions.assertTrue(result.active());
 
         verify(repository, never()).existsByEmail(any());
-        verify(repository).findById(userId);
+        verify(repository).findById(USER_ID);
         verify(mapper).convertToResponseDto(user);
         verify(repository).save(user);
     }
 
     @Test
     void shouldUpdateOnlyNameWhenEmailIsBlank() {
-        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
-        UserUpdateDto userUpdateDto = new UserUpdateDto("Name 2", "");
-
-        User user = new User();
-        user.setName("Name");
-        user.setEmail("email@email.com");
-
-        LocalDateTime createdAt = LocalDateTime.now();
+        UserUpdateDto userUpdateDto = new UserUpdateDto(UPDATED_NAME, "");
 
         UserResponseDto responseDto = new UserResponseDto(
-                userId,
-                "Name 2",
-                "email@email.com",
+                USER_ID,
+                UPDATED_NAME,
+                USER_EMAIL,
                 UserRole.USER,
                 true,
-                createdAt
+                CREATED_AT
         );
 
-        when(repository.findById(userId))
+        when(repository.findById(USER_ID))
                 .thenReturn(Optional.of(user));
 
         when(mapper.convertToResponseDto(user))
@@ -538,42 +502,36 @@ class UserServiceTest {
         when(repository.save(user))
                 .thenReturn(user);
 
-        UserResponseDto result = service.update(userId, userUpdateDto);
+        UserResponseDto result = service.update(USER_ID, userUpdateDto);
 
-        Assertions.assertEquals("Name 2", user.getName());
-        Assertions.assertEquals("email@email.com", user.getEmail());
-        Assertions.assertEquals("Name 2", result.name());
-        Assertions.assertEquals("email@email.com", result.email());
+        Assertions.assertEquals(UPDATED_NAME, user.getName());
+        Assertions.assertEquals(USER_EMAIL, user.getEmail());
+        Assertions.assertEquals(UPDATED_NAME, result.name());
+        Assertions.assertEquals(USER_EMAIL, result.email());
         Assertions.assertEquals(UserRole.USER, result.role());
-        Assertions.assertEquals(createdAt, result.createdAt());
+        Assertions.assertEquals(CREATED_AT, result.createdAt());
         Assertions.assertTrue(result.active());
 
         verify(repository, never()).existsByEmail(any());
-        verify(repository).findById(userId);
+        verify(repository).findById(USER_ID);
         verify(mapper).convertToResponseDto(user);
         verify(repository).save(user);
     }
 
     @Test
     void shouldKeepUserUnchangedWhenUpdateDtoIsNull() {
-        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
-        LocalDateTime createdAt = LocalDateTime.now();
         UserUpdateDto userUpdateDto = null;
 
         UserResponseDto responseDto = new UserResponseDto(
-                userId,
-                "Name",
-                "email@email.com",
+                USER_ID,
+                USER_NAME,
+                USER_EMAIL,
                 UserRole.USER,
                 true,
-                createdAt
+                CREATED_AT
         );
 
-        User user = new User();
-        user.setName("Name");
-        user.setEmail("email@email.com");
-
-        when(repository.findById(userId))
+        when(repository.findById(USER_ID))
                 .thenReturn(Optional.of(user));
 
         when(mapper.convertToResponseDto(user))
@@ -582,49 +540,41 @@ class UserServiceTest {
         when(repository.save(user))
                 .thenReturn(user);
 
-        UserResponseDto result = service.update(userId, userUpdateDto);
+        UserResponseDto result = service.update(USER_ID, userUpdateDto);
 
-        Assertions.assertEquals("Name", user.getName());
-        Assertions.assertEquals("email@email.com", user.getEmail());
-        Assertions.assertEquals("Name", result.name());
-        Assertions.assertEquals("email@email.com", result.email());
+        Assertions.assertEquals(USER_NAME, user.getName());
+        Assertions.assertEquals(USER_EMAIL, user.getEmail());
+        Assertions.assertEquals(USER_NAME, result.name());
+        Assertions.assertEquals(USER_EMAIL, result.email());
         Assertions.assertEquals(UserRole.USER, result.role());
-        Assertions.assertEquals(createdAt, result.createdAt());
+        Assertions.assertEquals(CREATED_AT, result.createdAt());
         Assertions.assertTrue(result.active());
 
         verify(repository, never()).existsByEmail(any());
-        verify(repository).findById(userId);
+        verify(repository).findById(USER_ID);
         verify(mapper).convertToResponseDto(user);
         verify(repository).save(user);
     }
 
     @Test
     void shouldUpdatePassword() {
-        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
-        ChangePasswordUpdateDto changePasswordUpdateDto = new ChangePasswordUpdateDto("teste");
+        ChangePasswordUpdateDto changePasswordUpdateDto = new ChangePasswordUpdateDto(NEW_PASSWORD);
 
-        LocalDateTime createdAt = LocalDateTime.now();
 
         UserResponseDto responseDto = new UserResponseDto(
-                userId,
-                "Name",
-                "email@email.com",
+                USER_ID,
+                USER_NAME,
+                USER_EMAIL,
                 UserRole.USER,
                 true,
-                createdAt
+                CREATED_AT
         );
 
-        User user = new User();
-        user.setPassword("Other password");
-
-        String exampleHash = "$2a$10$dXJ3w46eJZ9vCBq7f8b9e.aX6.D9g7W/SgqR2d8yHj9Y0Z4E7b7q6";
-
-
-        when(repository.findById(userId))
+        when(repository.findById(USER_ID))
                 .thenReturn(Optional.of(user));
 
         when(passwordEncoder.encode(changePasswordUpdateDto.password()))
-                .thenReturn(exampleHash);
+                .thenReturn(ENCODED_PASSWORD);
 
         when(mapper.convertToResponseDto(user))
                 .thenReturn(responseDto);
@@ -632,16 +582,16 @@ class UserServiceTest {
         when(repository.save(user))
                 .thenReturn(user);
 
-        UserResponseDto result = service.updatePassword(userId, changePasswordUpdateDto);
+        UserResponseDto result = service.updatePassword(USER_ID, changePasswordUpdateDto);
 
-        Assertions.assertEquals("Name", result.name());
-        Assertions.assertEquals("email@email.com", result.email());
+        Assertions.assertEquals(USER_NAME, result.name());
+        Assertions.assertEquals(USER_EMAIL, result.email());
         Assertions.assertEquals(UserRole.USER, result.role());
-        Assertions.assertEquals(createdAt, result.createdAt());
-        Assertions.assertEquals(exampleHash, user.getPassword());
+        Assertions.assertEquals(CREATED_AT, result.createdAt());
+        Assertions.assertEquals(ENCODED_PASSWORD, user.getPassword());
         Assertions.assertTrue(result.active());
 
-        verify(repository).findById(userId);
+        verify(repository).findById(USER_ID);
         verify(mapper).convertToResponseDto(user);
         verify(repository).save(user);
         verify(passwordEncoder).encode(changePasswordUpdateDto.password());
@@ -649,42 +599,35 @@ class UserServiceTest {
 
     @Test
     void shouldThrowUserNotFoundWhenUpdatingPassword() {
-        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
-        ChangePasswordUpdateDto changePasswordUpdateDto = new ChangePasswordUpdateDto("teste");
-        when(repository.findById(userId))
+        ChangePasswordUpdateDto changePasswordUpdateDto = new ChangePasswordUpdateDto(NEW_PASSWORD);
+        when(repository.findById(USER_ID))
                 .thenReturn(Optional.empty());
 
         ResourceNotFoundException exception = Assertions.assertThrows(ResourceNotFoundException.class,
-                () -> service.updatePassword(userId, changePasswordUpdateDto));
+                () -> service.updatePassword(USER_ID, changePasswordUpdateDto));
 
-        Assertions.assertEquals("User not found with ID: " + userId, exception.getMessage());
+        Assertions.assertEquals("User not found with ID: " + USER_ID, exception.getMessage());
 
         verifyNoInteractions(passwordEncoder);
         verifyNoInteractions(mapper);
-        verify(repository).findById(userId);
+        verify(repository).findById(USER_ID);
         verify(repository, never()).save(any());
     }
 
     @Test
     void shouldKeepPasswordUnchangedWhenPasswordUpdateDtoIsNull() {
-        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
 
-        LocalDateTime createdAt = LocalDateTime.now();
 
         UserResponseDto responseDto = new UserResponseDto(
-                userId,
-                "Name",
-                "email@email.com",
+                USER_ID,
+                USER_NAME,
+                USER_EMAIL,
                 UserRole.USER,
                 true,
-                createdAt
+                CREATED_AT
         );
 
-        User user = new User();
-        String originalPassword = "Original password";
-        user.setPassword(originalPassword);
-
-        when(repository.findById(userId))
+        when(repository.findById(USER_ID))
                 .thenReturn(Optional.of(user));
 
         when(repository.save(user))
@@ -693,16 +636,16 @@ class UserServiceTest {
         when(mapper.convertToResponseDto(user))
                 .thenReturn(responseDto);
 
-        UserResponseDto result = service.updatePassword(userId, null);
+        UserResponseDto result = service.updatePassword(USER_ID, null);
 
-        Assertions.assertEquals("Name", result.name());
-        Assertions.assertEquals("email@email.com", result.email());
+        Assertions.assertEquals(USER_NAME, result.name());
+        Assertions.assertEquals(USER_EMAIL, result.email());
         Assertions.assertEquals(UserRole.USER, result.role());
-        Assertions.assertEquals(createdAt, result.createdAt());
-        Assertions.assertEquals(originalPassword, user.getPassword());
+        Assertions.assertEquals(CREATED_AT, result.createdAt());
+        Assertions.assertEquals(ORIGINAL_PASSWORD, user.getPassword());
         Assertions.assertTrue(result.active());
 
-        verify(repository).findById(userId);
+        verify(repository).findById(USER_ID);
         verify(mapper).convertToResponseDto(user);
         verify(repository).save(user);
         verifyNoInteractions(passwordEncoder);
@@ -710,25 +653,19 @@ class UserServiceTest {
 
     @Test
     void shouldKeepPasswordUnchangedWhenPasswordIsNull() {
-        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
-        LocalDateTime createdAt = LocalDateTime.now();
         ChangePasswordUpdateDto changePasswordUpdateDto = new ChangePasswordUpdateDto(null);
 
 
         UserResponseDto responseDto = new UserResponseDto(
-                userId,
-                "Name",
-                "email@email.com",
+                USER_ID,
+                USER_NAME,
+                USER_EMAIL,
                 UserRole.USER,
                 true,
-                createdAt
+                CREATED_AT
         );
 
-        User user = new User();
-        String originalPassword = "Original password";
-        user.setPassword(originalPassword);
-
-        when(repository.findById(userId))
+        when(repository.findById(USER_ID))
                 .thenReturn(Optional.of(user));
 
         when(repository.save(user))
@@ -737,16 +674,16 @@ class UserServiceTest {
         when(mapper.convertToResponseDto(user))
                 .thenReturn(responseDto);
 
-        UserResponseDto result = service.updatePassword(userId, changePasswordUpdateDto);
+        UserResponseDto result = service.updatePassword(USER_ID, changePasswordUpdateDto);
 
-        Assertions.assertEquals("Name", result.name());
-        Assertions.assertEquals("email@email.com", result.email());
+        Assertions.assertEquals(USER_NAME, result.name());
+        Assertions.assertEquals(USER_EMAIL, result.email());
         Assertions.assertEquals(UserRole.USER, result.role());
-        Assertions.assertEquals(createdAt, result.createdAt());
-        Assertions.assertEquals(originalPassword, user.getPassword());
+        Assertions.assertEquals(CREATED_AT, result.createdAt());
+        Assertions.assertEquals(ORIGINAL_PASSWORD, user.getPassword());
         Assertions.assertTrue(result.active());
 
-        verify(repository).findById(userId);
+        verify(repository).findById(USER_ID);
         verify(mapper).convertToResponseDto(user);
         verify(repository).save(user);
         verifyNoInteractions(passwordEncoder);
@@ -754,25 +691,19 @@ class UserServiceTest {
 
     @Test
     void shouldKeepPasswordUnchangedWhenPasswordIsBlank() {
-        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
-        LocalDateTime createdAt = LocalDateTime.now();
         ChangePasswordUpdateDto changePasswordUpdateDto = new ChangePasswordUpdateDto("");
 
 
         UserResponseDto responseDto = new UserResponseDto(
-                userId,
-                "Name",
-                "email@email.com",
+                USER_ID,
+                USER_NAME,
+                USER_EMAIL,
                 UserRole.USER,
                 true,
-                createdAt
+                CREATED_AT
         );
 
-        User user = new User();
-        String originalPassword = "Original password";
-        user.setPassword(originalPassword);
-
-        when(repository.findById(userId))
+        when(repository.findById(USER_ID))
                 .thenReturn(Optional.of(user));
 
         when(repository.save(user))
@@ -781,16 +712,16 @@ class UserServiceTest {
         when(mapper.convertToResponseDto(user))
                 .thenReturn(responseDto);
 
-        UserResponseDto result = service.updatePassword(userId, changePasswordUpdateDto);
+        UserResponseDto result = service.updatePassword(USER_ID, changePasswordUpdateDto);
 
-        Assertions.assertEquals("Name", result.name());
-        Assertions.assertEquals("email@email.com", result.email());
+        Assertions.assertEquals(USER_NAME, result.name());
+        Assertions.assertEquals(USER_EMAIL, result.email());
         Assertions.assertEquals(UserRole.USER, result.role());
-        Assertions.assertEquals(createdAt, result.createdAt());
-        Assertions.assertEquals(originalPassword, user.getPassword());
+        Assertions.assertEquals(CREATED_AT, result.createdAt());
+        Assertions.assertEquals(ORIGINAL_PASSWORD, user.getPassword());
         Assertions.assertTrue(result.active());
 
-        verify(repository).findById(userId);
+        verify(repository).findById(USER_ID);
         verify(mapper).convertToResponseDto(user);
         verify(repository).save(user);
         verifyNoInteractions(passwordEncoder);
@@ -798,36 +729,31 @@ class UserServiceTest {
 
     @Test
     void shouldDeactivateUser() {
-        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
 
-        User user = new User();
-        user.setActive(true);
-
-        when(repository.findById(userId))
+        when(repository.findById(USER_ID))
                 .thenReturn(Optional.of(user));
 
-        service.deactivate(userId);
+        service.deactivate(USER_ID);
 
         Assertions.assertFalse(user.isActive());
 
-        verify(repository).findById(userId);
+        verify(repository).findById(USER_ID);
         verify(repository).save(user);
         verifyNoInteractions(mapper);
     }
 
     @Test
     void shouldThrowUserNotFoundWhenDeactivatingUser() {
-        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
 
-        when(repository.findById(userId))
+        when(repository.findById(USER_ID))
                 .thenReturn(Optional.empty());
 
         ResourceNotFoundException exception = Assertions.assertThrows(ResourceNotFoundException.class,
-                () -> service.deactivate(userId));
+                () -> service.deactivate(USER_ID));
 
-        Assertions.assertEquals("User not found with ID: " + userId, exception.getMessage());
+        Assertions.assertEquals("User not found with ID: " + USER_ID, exception.getMessage());
 
-        verify(repository).findById(userId);
+        verify(repository).findById(USER_ID);
         verify(repository, never()).save(any());
     }
 }
