@@ -2,6 +2,7 @@ package com.leonardo.helpdesk.service;
 
 import com.leonardo.helpdesk.dto.request.UserRequestDto;
 import com.leonardo.helpdesk.dto.response.UserResponseDto;
+import com.leonardo.helpdesk.dto.update.ChangePasswordUpdateDto;
 import com.leonardo.helpdesk.dto.update.UserUpdateDto;
 import com.leonardo.helpdesk.entity.User;
 import com.leonardo.helpdesk.enums.UserRole;
@@ -595,5 +596,203 @@ class UserServiceTest {
         verify(repository).findById(userId);
         verify(mapper).convertToResponseDto(user);
         verify(repository).save(user);
+    }
+
+    @Test
+    void shouldUpdatePassword() {
+        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        ChangePasswordUpdateDto changePasswordUpdateDto = new ChangePasswordUpdateDto("teste");
+
+        LocalDateTime createdAt = LocalDateTime.now();
+
+        UserResponseDto responseDto = new UserResponseDto(
+                userId,
+                "Name",
+                "email@email.com",
+                UserRole.USER,
+                true,
+                createdAt
+        );
+
+        User user = new User();
+        user.setPassword("Other password");
+
+        String exampleHash = "$2a$10$dXJ3w46eJZ9vCBq7f8b9e.aX6.D9g7W/SgqR2d8yHj9Y0Z4E7b7q6";
+
+
+        when(repository.findById(userId))
+                .thenReturn(Optional.of(user));
+
+        when(passwordEncoder.encode(changePasswordUpdateDto.password()))
+                .thenReturn(exampleHash);
+
+        when(mapper.convertToResponseDto(user))
+                .thenReturn(responseDto);
+
+        when(repository.save(user))
+                .thenReturn(user);
+
+        UserResponseDto result = service.updatePassword(userId, changePasswordUpdateDto);
+
+        Assertions.assertEquals("Name", result.name());
+        Assertions.assertEquals("email@email.com", result.email());
+        Assertions.assertEquals(UserRole.USER, result.role());
+        Assertions.assertEquals(createdAt, result.createdAt());
+        Assertions.assertEquals(exampleHash, user.getPassword());
+        Assertions.assertTrue(result.active());
+
+        verify(repository).findById(userId);
+        verify(mapper).convertToResponseDto(user);
+        verify(repository).save(user);
+        verify(passwordEncoder).encode(changePasswordUpdateDto.password());
+    }
+
+    @Test
+    void shouldThrowUserNotFoundWhenUpdatingPassword() {
+        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        ChangePasswordUpdateDto changePasswordUpdateDto = new ChangePasswordUpdateDto("teste");
+        when(repository.findById(userId))
+                .thenReturn(Optional.empty());
+
+        ResourceNotFoundException exception = Assertions.assertThrows(ResourceNotFoundException.class,
+                () -> service.updatePassword(userId, changePasswordUpdateDto));
+
+        Assertions.assertEquals("User not found with ID: " + userId, exception.getMessage());
+
+        verifyNoInteractions(passwordEncoder);
+        verifyNoInteractions(mapper);
+        verify(repository).findById(userId);
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void shouldKeepPasswordUnchangedWhenPasswordUpdateDtoIsNull() {
+        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+
+        LocalDateTime createdAt = LocalDateTime.now();
+
+        UserResponseDto responseDto = new UserResponseDto(
+                userId,
+                "Name",
+                "email@email.com",
+                UserRole.USER,
+                true,
+                createdAt
+        );
+
+        User user = new User();
+        String originalPassword = "Original password";
+        user.setPassword(originalPassword);
+
+        when(repository.findById(userId))
+                .thenReturn(Optional.of(user));
+
+        when(repository.save(user))
+                .thenReturn(user);
+
+        when(mapper.convertToResponseDto(user))
+                .thenReturn(responseDto);
+
+        UserResponseDto result = service.updatePassword(userId, null);
+
+        Assertions.assertEquals("Name", result.name());
+        Assertions.assertEquals("email@email.com", result.email());
+        Assertions.assertEquals(UserRole.USER, result.role());
+        Assertions.assertEquals(createdAt, result.createdAt());
+        Assertions.assertEquals(originalPassword, user.getPassword());
+        Assertions.assertTrue(result.active());
+
+        verify(repository).findById(userId);
+        verify(mapper).convertToResponseDto(user);
+        verify(repository).save(user);
+        verifyNoInteractions(passwordEncoder);
+    }
+
+    @Test
+    void shouldKeepPasswordUnchangedWhenPasswordIsNull() {
+        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        LocalDateTime createdAt = LocalDateTime.now();
+        ChangePasswordUpdateDto changePasswordUpdateDto = new ChangePasswordUpdateDto(null);
+
+
+        UserResponseDto responseDto = new UserResponseDto(
+                userId,
+                "Name",
+                "email@email.com",
+                UserRole.USER,
+                true,
+                createdAt
+        );
+
+        User user = new User();
+        String originalPassword = "Original password";
+        user.setPassword(originalPassword);
+
+        when(repository.findById(userId))
+                .thenReturn(Optional.of(user));
+
+        when(repository.save(user))
+                .thenReturn(user);
+
+        when(mapper.convertToResponseDto(user))
+                .thenReturn(responseDto);
+
+        UserResponseDto result = service.updatePassword(userId, changePasswordUpdateDto);
+
+        Assertions.assertEquals("Name", result.name());
+        Assertions.assertEquals("email@email.com", result.email());
+        Assertions.assertEquals(UserRole.USER, result.role());
+        Assertions.assertEquals(createdAt, result.createdAt());
+        Assertions.assertEquals(originalPassword, user.getPassword());
+        Assertions.assertTrue(result.active());
+
+        verify(repository).findById(userId);
+        verify(mapper).convertToResponseDto(user);
+        verify(repository).save(user);
+        verifyNoInteractions(passwordEncoder);
+    }
+
+    @Test
+    void shouldKeepPasswordUnchangedWhenPasswordIsBlank() {
+        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        LocalDateTime createdAt = LocalDateTime.now();
+        ChangePasswordUpdateDto changePasswordUpdateDto = new ChangePasswordUpdateDto("");
+
+
+        UserResponseDto responseDto = new UserResponseDto(
+                userId,
+                "Name",
+                "email@email.com",
+                UserRole.USER,
+                true,
+                createdAt
+        );
+
+        User user = new User();
+        String originalPassword = "Original password";
+        user.setPassword(originalPassword);
+
+        when(repository.findById(userId))
+                .thenReturn(Optional.of(user));
+
+        when(repository.save(user))
+                .thenReturn(user);
+
+        when(mapper.convertToResponseDto(user))
+                .thenReturn(responseDto);
+
+        UserResponseDto result = service.updatePassword(userId, changePasswordUpdateDto);
+
+        Assertions.assertEquals("Name", result.name());
+        Assertions.assertEquals("email@email.com", result.email());
+        Assertions.assertEquals(UserRole.USER, result.role());
+        Assertions.assertEquals(createdAt, result.createdAt());
+        Assertions.assertEquals(originalPassword, user.getPassword());
+        Assertions.assertTrue(result.active());
+
+        verify(repository).findById(userId);
+        verify(mapper).convertToResponseDto(user);
+        verify(repository).save(user);
+        verifyNoInteractions(passwordEncoder);
     }
 }
