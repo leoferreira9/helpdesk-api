@@ -795,4 +795,39 @@ class UserServiceTest {
         verify(repository).save(user);
         verifyNoInteractions(passwordEncoder);
     }
+
+    @Test
+    void shouldDeactivateUser() {
+        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+
+        User user = new User();
+        user.setActive(true);
+
+        when(repository.findById(userId))
+                .thenReturn(Optional.of(user));
+
+        service.deactivate(userId);
+
+        Assertions.assertFalse(user.isActive());
+
+        verify(repository).findById(userId);
+        verify(repository).save(user);
+        verifyNoInteractions(mapper);
+    }
+
+    @Test
+    void shouldThrowUserNotFoundWhenDeactivatingUser() {
+        UUID userId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+
+        when(repository.findById(userId))
+                .thenReturn(Optional.empty());
+
+        ResourceNotFoundException exception = Assertions.assertThrows(ResourceNotFoundException.class,
+                () -> service.deactivate(userId));
+
+        Assertions.assertEquals("User not found with ID: " + userId, exception.getMessage());
+
+        verify(repository).findById(userId);
+        verify(repository, never()).save(any());
+    }
 }
