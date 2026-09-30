@@ -8,6 +8,8 @@ import com.leonardo.helpdesk.enums.TicketAction;
 import com.leonardo.helpdesk.enums.TicketPriority;
 import com.leonardo.helpdesk.enums.TicketStatus;
 import com.leonardo.helpdesk.enums.UserRole;
+import com.leonardo.helpdesk.exception.ResourceNotFoundException;
+import com.leonardo.helpdesk.exception.UserNotActiveException;
 import com.leonardo.helpdesk.mapper.TicketMapper;
 import com.leonardo.helpdesk.repository.TicketRepository;
 import com.leonardo.helpdesk.repository.UserRepository;
@@ -22,8 +24,7 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class TicketServiceTest {
@@ -112,5 +113,58 @@ class TicketServiceTest {
         verify(ticketRepository).save(ticket);
         verify(ticketHistoryService).record(ticket, user, TicketAction.TICKET_CREATED, "Ticket created by requester Requester name");
         verify(ticketMapper).convertToResponseDto(ticket);
+    }
+
+    @Test
+    void shouldThrowResourceNotFoundExceptionWhenRequesterDoesNotExist() {
+        UUID requesterId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+
+        TicketRequestDto ticketRequestDto = new TicketRequestDto(
+                "Title",
+                "Description",
+                TicketPriority.HIGH,
+                requesterId
+        );
+
+        when(userRepository.findById(requesterId))
+                .thenReturn(Optional.empty());
+
+        ResourceNotFoundException exception = Assertions.assertThrows(ResourceNotFoundException.class,
+                () -> ticketService.create(ticketRequestDto));
+
+        Assertions.assertEquals("Requester not found with ID: " + ticketRequestDto.requesterId(), exception.getMessage());
+
+        verify(userRepository).findById(requesterId);
+        verifyNoInteractions(ticketRepository);
+        verifyNoInteractions(ticketMapper);
+        verifyNoInteractions(ticketHistoryService);
+    }
+
+    @Test
+    void shouldThrowUserNotActiveExceptionWhenRequesterIsInactive() {
+        UUID requesterId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+
+        TicketRequestDto ticketRequestDto = new TicketRequestDto(
+                "Title",
+                "Description",
+                TicketPriority.HIGH,
+                requesterId
+        );
+
+        User user = new User();
+        user.setActive(false);
+
+        when(userRepository.findById(requesterId))
+                .thenReturn(Optional.of(user));
+
+        UserNotActiveException exception = Assertions.assertThrows(UserNotActiveException.class,
+                () -> ticketService.create(ticketRequestDto));
+
+        Assertions.assertEquals("Requester is not active", exception.getMessage());
+
+        verifyNoInteractions(ticketMapper);
+        verifyNoInteractions(ticketRepository);
+        verifyNoInteractions(ticketHistoryService);
+        verify(userRepository).findById(requesterId);
     }
 }
