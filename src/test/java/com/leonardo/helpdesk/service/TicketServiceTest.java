@@ -167,4 +167,69 @@ class TicketServiceTest {
         verifyNoInteractions(ticketHistoryService);
         verify(userRepository).findById(requesterId);
     }
+
+    @Test
+    void shouldFindTicketById() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        Ticket ticket = new Ticket();
+        LocalDateTime createdAt = LocalDateTime.now();
+        LocalDateTime updatedAt = LocalDateTime.now();
+
+        TicketResponseDto responseDto = new TicketResponseDto(
+                ticketId,
+                "Title",
+                "Description",
+                TicketStatus.OPEN,
+                TicketPriority.HIGH,
+                "Requester name",
+                "requester@email.com",
+                UserRole.USER,
+                "Technician name",
+                "tech@email.com",
+                createdAt,
+                updatedAt,
+                null
+        );
+
+        when(ticketRepository.findById(ticketId))
+                .thenReturn(Optional.of(ticket));
+
+        when(ticketMapper.convertToResponseDto(ticket))
+                .thenReturn(responseDto);
+
+        TicketResponseDto result = ticketService.findById(ticketId);
+
+        Assertions.assertEquals(ticketId, result.id());
+        Assertions.assertEquals("Title", result.title());
+        Assertions.assertEquals("Description", result.description());
+        Assertions.assertEquals(TicketStatus.OPEN, result.status());
+        Assertions.assertEquals(TicketPriority.HIGH, result.priority());
+        Assertions.assertEquals("Requester name", result.requesterName());
+        Assertions.assertEquals("requester@email.com", result.requesterEmail());
+        Assertions.assertEquals(UserRole.USER, result.requesterRole());
+        Assertions.assertEquals("Technician name", result.technicianName());
+        Assertions.assertEquals("tech@email.com", result.technicianEmail());
+        Assertions.assertEquals(createdAt, result.createdAt());
+        Assertions.assertEquals(updatedAt, result.updatedAt());
+        Assertions.assertNull(result.resolvedAt());
+
+        verify(ticketRepository).findById(ticketId);
+        verify(ticketMapper).convertToResponseDto(ticket);
+    }
+
+    @Test
+    void shouldThrowResourceNotFoundExceptionWhenFindingTicketById() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+
+        when(ticketRepository.findById(ticketId))
+                .thenReturn(Optional.empty());
+
+        ResourceNotFoundException exception = Assertions.assertThrows(ResourceNotFoundException.class,
+                () -> ticketService.findById(ticketId));
+
+        Assertions.assertEquals("Ticket not found with ID: " + ticketId, exception.getMessage());
+
+        verify(ticketRepository).findById(ticketId);
+        verifyNoInteractions(ticketMapper);
+    }
 }
