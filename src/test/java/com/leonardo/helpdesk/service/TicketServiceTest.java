@@ -19,8 +19,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -231,5 +236,57 @@ class TicketServiceTest {
 
         verify(ticketRepository).findById(ticketId);
         verifyNoInteractions(ticketMapper);
+    }
+
+    @Test
+    void shouldFindAllTickets() {
+        Pageable pageable = PageRequest.of(0, 10);
+        Ticket ticket = new Ticket();
+
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        LocalDateTime createdAt = LocalDateTime.now();
+        LocalDateTime updatedAt = LocalDateTime.now();
+
+        TicketResponseDto responseDto = new TicketResponseDto(
+                ticketId,
+                "Title",
+                "Description",
+                TicketStatus.OPEN,
+                TicketPriority.HIGH,
+                "Requester name",
+                "requester@email.com",
+                UserRole.USER,
+                "Technician name",
+                "tech@email.com",
+                createdAt,
+                updatedAt,
+                null
+        );
+        when(ticketRepository.findAll(pageable))
+                .thenReturn(new PageImpl<>(List.of(ticket), pageable, 1));
+
+        when(ticketMapper.convertToResponseDto(ticket))
+                .thenReturn(responseDto);
+
+        Page<TicketResponseDto> result = ticketService.findAll(pageable);
+
+
+        Assertions.assertEquals(1, result.getTotalElements());
+        Assertions.assertEquals(ticketId, result.getContent().getFirst().id());
+        Assertions.assertEquals("Title", result.getContent().getFirst().title());
+        Assertions.assertEquals("Description", result.getContent().getFirst().description());
+        Assertions.assertEquals(TicketStatus.OPEN, result.getContent().getFirst().status());
+        Assertions.assertEquals(TicketPriority.HIGH, result.getContent().getFirst().priority());
+        Assertions.assertEquals("Requester name", result.getContent().getFirst().requesterName());
+        Assertions.assertEquals("requester@email.com", result.getContent().getFirst().requesterEmail());
+        Assertions.assertEquals(UserRole.USER, result.getContent().getFirst().requesterRole());
+        Assertions.assertEquals("Technician name", result.getContent().getFirst().technicianName());
+        Assertions.assertEquals("tech@email.com", result.getContent().getFirst().technicianEmail());
+        Assertions.assertEquals(createdAt, result.getContent().getFirst().createdAt());
+        Assertions.assertEquals(updatedAt, result.getContent().getFirst().updatedAt());
+        Assertions.assertNull(result.getContent().getFirst().resolvedAt());
+
+        verify(ticketRepository).findAll(pageable);
+        verify(ticketMapper).convertToResponseDto(ticket);
     }
 }
