@@ -1,8 +1,10 @@
 package com.leonardo.helpdesk.controller;
 
 import com.leonardo.helpdesk.dto.request.TicketRequestDto;
+import com.leonardo.helpdesk.dto.response.TicketHistoryResponseDto;
 import com.leonardo.helpdesk.dto.response.TicketResponseDto;
 import com.leonardo.helpdesk.dto.update.TicketDetailsUpdateDto;
+import com.leonardo.helpdesk.service.TicketHistoryService;
 import com.leonardo.helpdesk.service.TicketService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
@@ -12,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -19,9 +22,11 @@ import java.util.UUID;
 public class TicketController {
 
     private final TicketService ticketService;
+    private final TicketHistoryService ticketHistoryService;
 
-    public TicketController(TicketService ticketService) {
+    public TicketController(TicketService ticketService, TicketHistoryService ticketHistoryService) {
         this.ticketService = ticketService;
+        this.ticketHistoryService = ticketHistoryService;
     }
 
     @PostMapping
@@ -41,6 +46,12 @@ public class TicketController {
     public ResponseEntity<TicketResponseDto> findById(@PathVariable UUID id) {
         TicketResponseDto ticket = ticketService.findById(id);
         return ResponseEntity.ok(ticket);
+    }
+
+    @GetMapping("/{id}/history")
+    public ResponseEntity<List<TicketHistoryResponseDto>> findTicketHistoryById(@PathVariable UUID id) {
+        List<TicketHistoryResponseDto> ticketHistory = ticketHistoryService.findByTicketId(id);
+        return ResponseEntity.ok(ticketHistory);
     }
 
     @GetMapping

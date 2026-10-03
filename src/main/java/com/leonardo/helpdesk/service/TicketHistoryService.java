@@ -5,8 +5,10 @@ import com.leonardo.helpdesk.entity.Ticket;
 import com.leonardo.helpdesk.entity.TicketHistory;
 import com.leonardo.helpdesk.entity.User;
 import com.leonardo.helpdesk.enums.TicketAction;
+import com.leonardo.helpdesk.exception.ResourceNotFoundException;
 import com.leonardo.helpdesk.mapper.TicketHistoryMapper;
 import com.leonardo.helpdesk.repository.TicketHistoryRepository;
+import com.leonardo.helpdesk.repository.TicketRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,10 +20,12 @@ public class TicketHistoryService {
 
     private final TicketHistoryRepository ticketHistoryRepository;
     private final TicketHistoryMapper ticketHistoryMapper;
+    private final TicketRepository ticketRepository;
 
-    public TicketHistoryService(TicketHistoryRepository ticketHistoryRepository, TicketHistoryMapper ticketHistoryMapper) {
+    public TicketHistoryService(TicketHistoryRepository ticketHistoryRepository, TicketHistoryMapper ticketHistoryMapper, TicketRepository ticketRepository) {
         this.ticketHistoryRepository = ticketHistoryRepository;
         this.ticketHistoryMapper = ticketHistoryMapper;
+        this.ticketRepository = ticketRepository;
     }
 
     public void record(Ticket ticket, User user, TicketAction action, String description) {
@@ -35,6 +39,9 @@ public class TicketHistoryService {
 
     @Transactional(readOnly = true)
     public List<TicketHistoryResponseDto> findByTicketId(UUID ticketId) {
+        ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new ResourceNotFoundException("Ticket not found with ID: " + ticketId));
+
         return ticketHistoryRepository.findByTicketIdOrderByCreatedAtAsc(ticketId)
                 .stream().map(ticketHistoryMapper::convertToResponseDto).toList();
     }
