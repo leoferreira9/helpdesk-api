@@ -1,14 +1,18 @@
 package com.leonardo.helpdesk.controller;
 
+import com.leonardo.helpdesk.dto.request.TicketCommentRequestDto;
 import com.leonardo.helpdesk.dto.request.TicketRequestDto;
+import com.leonardo.helpdesk.dto.response.TicketCommentResponseDto;
 import com.leonardo.helpdesk.dto.response.TicketHistoryResponseDto;
 import com.leonardo.helpdesk.dto.response.TicketResponseDto;
 import com.leonardo.helpdesk.dto.update.TicketDetailsUpdateDto;
+import com.leonardo.helpdesk.service.TicketCommentService;
 import com.leonardo.helpdesk.service.TicketHistoryService;
 import com.leonardo.helpdesk.service.TicketService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -23,10 +27,12 @@ public class TicketController {
 
     private final TicketService ticketService;
     private final TicketHistoryService ticketHistoryService;
+    private final TicketCommentService ticketCommentService;
 
-    public TicketController(TicketService ticketService, TicketHistoryService ticketHistoryService) {
+    public TicketController(TicketService ticketService, TicketHistoryService ticketHistoryService, TicketCommentService ticketCommentService) {
         this.ticketService = ticketService;
         this.ticketHistoryService = ticketHistoryService;
+        this.ticketCommentService = ticketCommentService;
     }
 
     @PostMapping
@@ -40,6 +46,18 @@ public class TicketController {
                 .toUri();
 
         return ResponseEntity.created(location).body(savedTicket);
+    }
+
+    @PostMapping("/{id}/comments")
+    public ResponseEntity<TicketCommentResponseDto> createComment(@PathVariable UUID id, @Valid @RequestBody TicketCommentRequestDto requestDto) {
+        TicketCommentResponseDto ticketComment = ticketCommentService.create(id, requestDto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ticketComment);
+    }
+
+    @GetMapping("/{id}/comments")
+    public ResponseEntity<List<TicketCommentResponseDto>> findCommentsByTicketId(@PathVariable UUID id) {
+        List<TicketCommentResponseDto> comments = ticketCommentService.findByTicketId(id);
+        return ResponseEntity.ok(comments);
     }
 
     @GetMapping("/{id}")
