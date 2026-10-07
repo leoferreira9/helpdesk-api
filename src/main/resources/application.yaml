@@ -12,3 +12,8 @@ spring:
     hibernate:
       ddl-auto: validate
     show-sql: true
+
+  security:
+    jwt:
+      secret: ${SECRET_KEY}
+      expiration: 3600000
