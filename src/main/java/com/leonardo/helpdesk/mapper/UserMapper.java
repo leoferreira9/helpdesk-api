@@ -15,5 +15,6 @@ public interface UserMapper {
     @Mapping(target = "active", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "password", ignore = true)
+    @Mapping(target = "authorities", ignore = true)
     User convertToEntity(UserRequestDto requestDto);
 }
