@@ -47,6 +47,8 @@ public class UserService {
         String cryptographedPassword = passwordEncoder.encode(requestDto.password());
         user.setPassword(cryptographedPassword);
 
+        user.setActive(true);
+
         User savedUser = userRepository.save(user);
         return userMapper.convertToResponseDto(savedUser);
     }

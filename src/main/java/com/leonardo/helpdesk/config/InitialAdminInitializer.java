@@ -46,6 +46,7 @@ public class InitialAdminInitializer implements ApplicationRunner {
         user.setEmail(initialAdminEmail);
         user.setPassword(encodedInitialAdminPassword);
         user.setRole(UserRole.ADMIN);
+        user.setActive(true);
 
         userRepository.save(user);
     }
