@@ -17,3 +17,20 @@ spring:
     jwt:
       secret: ${SECRET_KEY}
       expiration: 3600000
+
+  mail:
+    host: ${EMAIL_HOST}
+    port: ${EMAIL_PORT}
+    username: ${EMAIL_USERNAME}
+    password: ${EMAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+app:
+  mail:
+    from: no-reply@helpdesk.test
+  base-url: http://localhost:8080
