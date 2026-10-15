@@ -117,6 +117,18 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(error.status()).body(error);
     }
 
+    @ExceptionHandler(InvalidEmailVerificationTokenException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidEmailVerificationTokenException(HttpServletRequest request, InvalidEmailVerificationTokenException ex) {
+        ErrorResponse error = buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+        return ResponseEntity.status(error.status()).body(error);
+    }
+
+    @ExceptionHandler(ExpiredEmailVerificationTokenException.class)
+    public ResponseEntity<ErrorResponse> handleExpiredEmailVerificationTokenException(HttpServletRequest request, ExpiredEmailVerificationTokenException ex) {
+        ErrorResponse error = buildError(HttpStatus.GONE, ex.getMessage(), request);
+        return ResponseEntity.status(error.status()).body(error);
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDeniedException(HttpServletRequest request, AccessDeniedException ex) {
         ErrorResponse error = buildError(HttpStatus.FORBIDDEN, "Access denied", request);

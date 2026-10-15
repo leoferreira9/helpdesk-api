@@ -15,11 +15,13 @@ public class RegistrationService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailVerificationTokenService emailVerificationTokenService;
+    private final EmailService emailService;
 
-    public RegistrationService(UserRepository userRepository, PasswordEncoder passwordEncoder, EmailVerificationTokenService emailVerificationTokenService) {
+    public RegistrationService(UserRepository userRepository, PasswordEncoder passwordEncoder, EmailVerificationTokenService emailVerificationTokenService, EmailService emailService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailVerificationTokenService = emailVerificationTokenService;
+        this.emailService = emailService;
     }
 
     @Transactional
@@ -37,5 +39,7 @@ public class RegistrationService {
 
         User savedUser = userRepository.save(user);
         String token = emailVerificationTokenService.createToken(savedUser);
+
+        emailService.sendVerificationEmail(savedUser.getEmail(), token);
     }
 }

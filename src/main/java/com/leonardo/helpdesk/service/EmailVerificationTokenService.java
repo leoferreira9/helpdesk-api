@@ -2,8 +2,11 @@ package com.leonardo.helpdesk.service;
 
 import com.leonardo.helpdesk.entity.EmailVerificationToken;
 import com.leonardo.helpdesk.entity.User;
+import com.leonardo.helpdesk.exception.ExpiredEmailVerificationTokenException;
+import com.leonardo.helpdesk.exception.InvalidEmailVerificationTokenException;
 import com.leonardo.helpdesk.repository.EmailVerificationTokenRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -48,5 +51,25 @@ public class EmailVerificationTokenService {
 
         emailVerificationTokenRepository.save(emailVerificationToken);
         return token;
+    }
+
+    @Transactional
+    public void confirmToken(String token) {
+        LocalDateTime now = LocalDateTime.now();
+        String hash = hashToken(token);
+        EmailVerificationToken tokenFound = emailVerificationTokenRepository.findByTokenHash(hash)
+                .orElseThrow(() -> new InvalidEmailVerificationTokenException("Invalid token!"));
+
+
+        if(tokenFound.getConfirmedAt() != null) {
+            return;
+        }
+
+        if(tokenFound.getExpiresAt().isBefore(now)) {
+            throw new ExpiredEmailVerificationTokenException("Token expired!");
+        }
+
+        tokenFound.getUser().setActive(true);
+        tokenFound.setConfirmedAt(now);
     }
 }
