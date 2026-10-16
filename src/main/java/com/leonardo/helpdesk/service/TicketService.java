@@ -6,14 +6,17 @@ import com.leonardo.helpdesk.dto.update.TicketDetailsUpdateDto;
 import com.leonardo.helpdesk.entity.Ticket;
 import com.leonardo.helpdesk.entity.User;
 import com.leonardo.helpdesk.enums.TicketAction;
+import com.leonardo.helpdesk.enums.TicketPriority;
 import com.leonardo.helpdesk.enums.TicketStatus;
 import com.leonardo.helpdesk.enums.UserRole;
 import com.leonardo.helpdesk.exception.*;
 import com.leonardo.helpdesk.mapper.TicketMapper;
 import com.leonardo.helpdesk.repository.TicketRepository;
 import com.leonardo.helpdesk.repository.UserRepository;
+import com.leonardo.helpdesk.specification.TicketSpecification;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -72,8 +75,19 @@ public class TicketService {
     }
 
     @Transactional(readOnly = true)
-    public Page<TicketResponseDto> findAll(Pageable pageable) {
-        Page<Ticket> page = ticketRepository.findAll(pageable);
+    public Page<TicketResponseDto> findAll(
+            Pageable pageable,
+            TicketStatus status,
+            TicketPriority priority,
+            UUID requesterId,
+            UUID technicianId
+    ) {
+        Specification<Ticket> spec = Specification.where(TicketSpecification.findTicketByPriority(priority))
+                .and(TicketSpecification.findTicketsByStatus(status))
+                .and(TicketSpecification.findTicketByRequester(requesterId))
+                .and(TicketSpecification.findTicketByTechnician(technicianId));
+
+        Page<Ticket> page = ticketRepository.findAll(spec, pageable);
         return page.map(ticketMapper::convertToResponseDto);
     }
 

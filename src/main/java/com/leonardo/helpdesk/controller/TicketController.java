@@ -6,6 +6,8 @@ import com.leonardo.helpdesk.dto.response.TicketCommentResponseDto;
 import com.leonardo.helpdesk.dto.response.TicketHistoryResponseDto;
 import com.leonardo.helpdesk.dto.response.TicketResponseDto;
 import com.leonardo.helpdesk.dto.update.TicketDetailsUpdateDto;
+import com.leonardo.helpdesk.enums.TicketPriority;
+import com.leonardo.helpdesk.enums.TicketStatus;
 import com.leonardo.helpdesk.service.TicketCommentService;
 import com.leonardo.helpdesk.service.TicketHistoryService;
 import com.leonardo.helpdesk.service.TicketService;
@@ -73,8 +75,14 @@ public class TicketController {
     }
 
     @GetMapping
-    public ResponseEntity<Page<TicketResponseDto>> findAll(Pageable pageable) {
-        Page<TicketResponseDto> tickets = ticketService.findAll(pageable);
+    public ResponseEntity<Page<TicketResponseDto>> findAll(
+            Pageable pageable,
+            @RequestParam(required = false) TicketStatus status,
+            @RequestParam(required = false) TicketPriority priority,
+            @RequestParam(required = false, name = "requesterId") UUID requester,
+            @RequestParam(required = false, name = "technicianId") UUID technician
+    ) {
+        Page<TicketResponseDto> tickets = ticketService.findAll(pageable, status, priority, requester, technician);
         return ResponseEntity.ok(tickets);
     }
 
