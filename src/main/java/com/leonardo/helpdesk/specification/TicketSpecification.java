@@ -3,8 +3,11 @@ package com.leonardo.helpdesk.specification;
 import com.leonardo.helpdesk.entity.Ticket;
 import com.leonardo.helpdesk.enums.TicketPriority;
 import com.leonardo.helpdesk.enums.TicketStatus;
+import com.leonardo.helpdesk.exception.InvalidDateRangeException;
 import org.springframework.data.jpa.domain.Specification;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 public class TicketSpecification {
@@ -49,4 +52,30 @@ public class TicketSpecification {
         };
     }
 
+    public static Specification<Ticket> findTicketByCreatedAt(LocalDate start, LocalDate end) {
+        return (root, query, criteriaBuilder) -> {
+            if (start == null && end == null) {
+                return criteriaBuilder.conjunction();
+            }
+
+            if (start != null && end != null && start.isAfter(end)) {
+                throw new InvalidDateRangeException("Start date must not be after end date!");
+            }
+
+            if (end == null) {
+                return criteriaBuilder.greaterThanOrEqualTo(root.get("createdAt"), start.atStartOfDay());
+            }
+
+            LocalDateTime endExclusive = end.plusDays(1).atStartOfDay();
+
+            if (start == null) {
+                return criteriaBuilder.lessThan(root.get("createdAt"), endExclusive);
+            }
+
+            return criteriaBuilder.and(
+                    criteriaBuilder.greaterThanOrEqualTo(root.get("createdAt"), start.atStartOfDay()),
+                    criteriaBuilder.lessThan(root.get("createdAt"), endExclusive)
+            );
+        };
+    }
 }

@@ -14,12 +14,14 @@ import com.leonardo.helpdesk.service.TicketService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -80,9 +82,11 @@ public class TicketController {
             @RequestParam(required = false) TicketStatus status,
             @RequestParam(required = false) TicketPriority priority,
             @RequestParam(required = false, name = "requesterId") UUID requester,
-            @RequestParam(required = false, name = "technicianId") UUID technician
-    ) {
-        Page<TicketResponseDto> tickets = ticketService.findAll(pageable, status, priority, requester, technician);
+            @RequestParam(required = false, name = "technicianId") UUID technician,
+            @RequestParam(required = false, name = "start") @DateTimeFormat(pattern = "dd/MM/yyyy") LocalDate startDate,
+            @RequestParam(required = false, name = "end") @DateTimeFormat(pattern = "dd/MM/yyyy") LocalDate endDate
+            ) {
+        Page<TicketResponseDto> tickets = ticketService.findAll(pageable, status, priority, requester, technician, startDate, endDate);
         return ResponseEntity.ok(tickets);
     }
 

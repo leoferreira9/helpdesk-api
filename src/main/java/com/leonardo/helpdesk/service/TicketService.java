@@ -20,6 +20,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -80,12 +81,15 @@ public class TicketService {
             TicketStatus status,
             TicketPriority priority,
             UUID requesterId,
-            UUID technicianId
+            UUID technicianId,
+            LocalDate startDate,
+            LocalDate endDate
     ) {
         Specification<Ticket> spec = Specification.where(TicketSpecification.findTicketByPriority(priority))
                 .and(TicketSpecification.findTicketsByStatus(status))
                 .and(TicketSpecification.findTicketByRequester(requesterId))
-                .and(TicketSpecification.findTicketByTechnician(technicianId));
+                .and(TicketSpecification.findTicketByTechnician(technicianId))
+                .and(TicketSpecification.findTicketByCreatedAt(startDate, endDate));
 
         Page<Ticket> page = ticketRepository.findAll(spec, pageable);
         return page.map(ticketMapper::convertToResponseDto);

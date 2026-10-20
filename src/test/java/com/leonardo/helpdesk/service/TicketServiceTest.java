@@ -18,12 +18,20 @@ import com.leonardo.helpdesk.repository.UserRepository;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -236,66 +244,69 @@ class TicketServiceTest {
         verifyNoInteractions(ticketMapper);
     }
 
-//    @Test
-//    void shouldFindAllTickets() {
-//        Pageable pageable = PageRequest.of(0, 10);
-//        Ticket ticket = new Ticket();
-//
-//        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
-//        LocalDateTime createdAt = LocalDateTime.now();
-//        LocalDateTime updatedAt = LocalDateTime.now();
-//
-//        TicketResponseDto responseDto = new TicketResponseDto(
-//                ticketId,
-//                "Title",
-//                "Description",
-//                TicketStatus.OPEN,
-//                TicketPriority.HIGH,
-//                "Requester name",
-//                "requester@email.com",
-//                UserRole.USER,
-//                "Technician name",
-//                "tech@email.com",
-//                createdAt,
-//                updatedAt,
-//                null
-//        );
-//
-//        User requester = new User();
-//        User technician = new User();
-//
-//        Specification<Ticket> spec = Specification.where(TicketSpecification.findTicketByPriority(TicketPriority.HIGH))
-//                .and(TicketSpecification.findTicketsByStatus(TicketStatus.OPEN))
-//                .and(TicketSpecification.findTicketByRequester(requester))
-//                .and(TicketSpecification.findTicketByTechnician(technician));
-//
-//        when(ticketRepository.findAll(pageable))
-//                .thenReturn(new PageImpl<>(List.of(ticket), pageable, 1));
-//
-//        when(ticketMapper.convertToResponseDto(ticket))
-//                .thenReturn(responseDto);
-//
-//        Page<TicketResponseDto> result = ticketService.findAll(pageable, spec);
-//
-//
-//        Assertions.assertEquals(1, result.getTotalElements());
-//        Assertions.assertEquals(ticketId, result.getContent().getFirst().id());
-//        Assertions.assertEquals("Title", result.getContent().getFirst().title());
-//        Assertions.assertEquals("Description", result.getContent().getFirst().description());
-//        Assertions.assertEquals(TicketStatus.OPEN, result.getContent().getFirst().status());
-//        Assertions.assertEquals(TicketPriority.HIGH, result.getContent().getFirst().priority());
-//        Assertions.assertEquals("Requester name", result.getContent().getFirst().requesterName());
-//        Assertions.assertEquals("requester@email.com", result.getContent().getFirst().requesterEmail());
-//        Assertions.assertEquals(UserRole.USER, result.getContent().getFirst().requesterRole());
-//        Assertions.assertEquals("Technician name", result.getContent().getFirst().technicianName());
-//        Assertions.assertEquals("tech@email.com", result.getContent().getFirst().technicianEmail());
-//        Assertions.assertEquals(createdAt, result.getContent().getFirst().createdAt());
-//        Assertions.assertEquals(updatedAt, result.getContent().getFirst().updatedAt());
-//        Assertions.assertNull(result.getContent().getFirst().resolvedAt());
-//
-//        verify(ticketRepository).findAll(pageable);
-//        verify(ticketMapper).convertToResponseDto(ticket);
-//    }
+    @Test
+    void shouldFindAllTickets() {
+        Pageable pageable = PageRequest.of(0, 10);
+        Ticket ticket = new Ticket();
+
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID requesterId = UUID.fromString("7b3e9a42-6f81-4c25-a9d0-13e8b57c24f6");
+        UUID technicianId = UUID.fromString("8c4f0b53-7a92-4d36-b0e1-24f9c68d35a7");
+        LocalDate startDate = LocalDate.of(2026, 10, 1);
+        LocalDate endDate = LocalDate.of(2026, 10, 19);
+        LocalDateTime createdAt = LocalDateTime.now();
+        LocalDateTime updatedAt = LocalDateTime.now();
+
+        TicketResponseDto responseDto = new TicketResponseDto(
+                ticketId,
+                "Title",
+                "Description",
+                TicketStatus.OPEN,
+                TicketPriority.HIGH,
+                "Requester name",
+                "requester@email.com",
+                UserRole.USER,
+                "Technician name",
+                "tech@email.com",
+                createdAt,
+                updatedAt,
+                null
+        );
+
+        when(ticketRepository.findAll(ArgumentMatchers.<Specification<Ticket>>any(), eq(pageable)))
+                .thenReturn(new PageImpl<>(List.of(ticket), pageable, 1));
+
+        when(ticketMapper.convertToResponseDto(ticket))
+                .thenReturn(responseDto);
+
+        Page<TicketResponseDto> result = ticketService.findAll(
+                pageable,
+                TicketStatus.OPEN,
+                TicketPriority.HIGH,
+                requesterId,
+                technicianId,
+                startDate,
+                endDate
+        );
+
+        Assertions.assertEquals(1, result.getTotalElements());
+        Assertions.assertEquals(ticketId, result.getContent().getFirst().id());
+        Assertions.assertEquals("Title", result.getContent().getFirst().title());
+        Assertions.assertEquals("Description", result.getContent().getFirst().description());
+        Assertions.assertEquals(TicketStatus.OPEN, result.getContent().getFirst().status());
+        Assertions.assertEquals(TicketPriority.HIGH, result.getContent().getFirst().priority());
+        Assertions.assertEquals("Requester name", result.getContent().getFirst().requesterName());
+        Assertions.assertEquals("requester@email.com", result.getContent().getFirst().requesterEmail());
+        Assertions.assertEquals(UserRole.USER, result.getContent().getFirst().requesterRole());
+        Assertions.assertEquals("Technician name", result.getContent().getFirst().technicianName());
+        Assertions.assertEquals("tech@email.com", result.getContent().getFirst().technicianEmail());
+        Assertions.assertEquals(createdAt, result.getContent().getFirst().createdAt());
+        Assertions.assertEquals(updatedAt, result.getContent().getFirst().updatedAt());
+        Assertions.assertNull(result.getContent().getFirst().resolvedAt());
+
+        verify(ticketRepository).findAll(ArgumentMatchers.<Specification<Ticket>>any(), eq(pageable));
+        verify(ticketMapper).convertToResponseDto(ticket);
+    }
 
     @Test
     void shouldUpdateTicketDetails() {

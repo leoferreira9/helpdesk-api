@@ -129,6 +129,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(error.status()).body(error);
     }
 
+    @ExceptionHandler(InvalidDateRangeException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidDateRangeException(HttpServletRequest request, InvalidDateRangeException ex) {
+        ErrorResponse error = buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+        return ResponseEntity.status(error.status()).body(error);
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDeniedException(HttpServletRequest request, AccessDeniedException ex) {
         ErrorResponse error = buildError(HttpStatus.FORBIDDEN, "Access denied", request);
