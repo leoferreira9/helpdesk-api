@@ -50,9 +50,9 @@ public class TicketService {
     }
 
     @Transactional
-    public TicketResponseDto create(TicketRequestDto requestDto) {
-        User requesterExists = userRepository.findById(requestDto.requesterId())
-                .orElseThrow(() -> new ResourceNotFoundException("Requester not found with ID: " + requestDto.requesterId()));
+    public TicketResponseDto create(User authenticatedUser, TicketRequestDto requestDto) {
+        User requesterExists = userRepository.findById(authenticatedUser.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Requester not found with ID: " + authenticatedUser.getId()));
 
         if(!requesterExists.isActive()){
             throw new UserNotActiveException("Requester is not active");
@@ -96,9 +96,9 @@ public class TicketService {
     }
 
     @Transactional
-    public TicketResponseDto updateDetails(UUID ticketId, TicketDetailsUpdateDto detailsUpdateDto, UUID updaterId) {
+    public TicketResponseDto updateDetails(User authenticatedUser, UUID ticketId, TicketDetailsUpdateDto detailsUpdateDto) {
         Ticket ticketExists = findTicketOrThrow(ticketId);
-        User userExists = findUserOrThrow(updaterId);
+        User userExists = findUserOrThrow(authenticatedUser.getId());
 
         if(ticketExists.getStatus().equals(TicketStatus.CLOSED)) {
             throw new InvalidTicketStatusException("Ticket can't be updated because it's Closed");
@@ -133,8 +133,9 @@ public class TicketService {
     }
 
     @Transactional
-    public TicketResponseDto assignTechnician(UUID ticketId, UUID technicianId) {
+    public TicketResponseDto assignTechnician(User authenticatedUser, UUID ticketId, UUID technicianId) {
         Ticket ticketExists = findTicketOrThrow(ticketId);
+        User userExists = findUserOrThrow(authenticatedUser.getId());
         User technicianExists = findUserOrThrow(technicianId);
 
         if(!ticketExists.getStatus().equals(TicketStatus.OPEN)) {
@@ -158,15 +159,15 @@ public class TicketService {
         Ticket savedTicket = ticketRepository.save(ticketExists);
 
         String ticketHistoryDescription = "Ticket assigned to technician " + technicianExists.getName();
-        ticketHistoryService.record(ticketExists, technicianExists, TicketAction.TICKET_ASSIGNED, ticketHistoryDescription);
+        ticketHistoryService.record(ticketExists, userExists, TicketAction.TICKET_ASSIGNED, ticketHistoryDescription);
 
         return ticketMapper.convertToResponseDto(savedTicket);
     }
 
     @Transactional
-    public TicketResponseDto resolve(UUID ticketId, UUID technicianId) {
+    public TicketResponseDto resolve(User authenticatedUser, UUID ticketId) {
         Ticket ticketExists = findTicketOrThrow(ticketId);
-        User technician = findUserOrThrow(technicianId);
+        User technician = findUserOrThrow(authenticatedUser.getId());
 
         if(ticketExists.getStatus().equals(TicketStatus.RESOLVED)){
             throw new InvalidTicketStatusException("Ticket already resolved");
@@ -205,9 +206,9 @@ public class TicketService {
     }
 
     @Transactional
-    public TicketResponseDto close(UUID ticketId, UUID userId) {
+    public TicketResponseDto close(User authenticatedUser, UUID ticketId) {
         Ticket ticketExists = findTicketOrThrow(ticketId);
-        User userExists = findUserOrThrow(userId);
+        User userExists = findUserOrThrow(authenticatedUser.getId());
 
         if(!ticketExists.getStatus().equals(TicketStatus.RESOLVED)) {
             throw new InvalidTicketStatusException("Ticket must be Resolved to be Closed");

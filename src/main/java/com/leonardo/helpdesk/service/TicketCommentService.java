@@ -45,9 +45,9 @@ public class TicketCommentService {
     }
 
     @Transactional
-    public TicketCommentResponseDto create(UUID id, TicketCommentRequestDto requestDto) {
+    public TicketCommentResponseDto create(User authenticatedUser, UUID id, TicketCommentRequestDto requestDto) {
         Ticket ticketExists = findTicketByIdOrThrow(id);
-        User userExists = findUserByIdOrThrow(requestDto.userId());
+        User userExists = findUserByIdOrThrow(authenticatedUser.getId());
 
         if(!userExists.isActive()) {
             throw new UserNotActiveException("User is not active");

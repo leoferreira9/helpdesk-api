@@ -6,6 +6,7 @@ import com.leonardo.helpdesk.dto.response.TicketCommentResponseDto;
 import com.leonardo.helpdesk.dto.response.TicketHistoryResponseDto;
 import com.leonardo.helpdesk.dto.response.TicketResponseDto;
 import com.leonardo.helpdesk.dto.update.TicketDetailsUpdateDto;
+import com.leonardo.helpdesk.entity.User;
 import com.leonardo.helpdesk.enums.TicketPriority;
 import com.leonardo.helpdesk.enums.TicketStatus;
 import com.leonardo.helpdesk.service.TicketCommentService;
@@ -17,6 +18,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -40,8 +42,8 @@ public class TicketController {
     }
 
     @PostMapping
-    public ResponseEntity<TicketResponseDto> create(@Valid @RequestBody TicketRequestDto requestDto) {
-        TicketResponseDto savedTicket = ticketService.create(requestDto);
+    public ResponseEntity<TicketResponseDto> create(@AuthenticationPrincipal User authenticatedUser, @Valid @RequestBody TicketRequestDto requestDto) {
+        TicketResponseDto savedTicket = ticketService.create(authenticatedUser, requestDto);
 
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
@@ -53,8 +55,8 @@ public class TicketController {
     }
 
     @PostMapping("/{id}/comments")
-    public ResponseEntity<TicketCommentResponseDto> createComment(@PathVariable UUID id, @Valid @RequestBody TicketCommentRequestDto requestDto) {
-        TicketCommentResponseDto ticketComment = ticketCommentService.create(id, requestDto);
+    public ResponseEntity<TicketCommentResponseDto> createComment(@AuthenticationPrincipal User authenticatedUser, @PathVariable UUID id, @Valid @RequestBody TicketCommentRequestDto requestDto) {
+        TicketCommentResponseDto ticketComment = ticketCommentService.create(authenticatedUser, id, requestDto);
         return ResponseEntity.status(HttpStatus.CREATED).body(ticketComment);
     }
 
@@ -91,26 +93,26 @@ public class TicketController {
     }
 
     @PatchMapping("/{ticketId}")
-    public ResponseEntity<TicketResponseDto> update(@PathVariable UUID ticketId, @Valid @RequestBody TicketDetailsUpdateDto updateDto, @RequestParam UUID updaterId) {
-        TicketResponseDto updatedTicket = ticketService.updateDetails(ticketId, updateDto, updaterId);
+    public ResponseEntity<TicketResponseDto> update(@AuthenticationPrincipal User authenticatedUser, @PathVariable UUID ticketId, @Valid @RequestBody TicketDetailsUpdateDto updateDto) {
+        TicketResponseDto updatedTicket = ticketService.updateDetails(authenticatedUser, ticketId, updateDto);
         return ResponseEntity.ok(updatedTicket);
     }
 
     @PatchMapping("/{ticketId}/assign")
-    public ResponseEntity<TicketResponseDto> assignTechnician(@PathVariable UUID ticketId, @RequestParam UUID technicianId) {
-        TicketResponseDto assignedTicket = ticketService.assignTechnician(ticketId, technicianId);
+    public ResponseEntity<TicketResponseDto> assignTechnician(@AuthenticationPrincipal User authenticatedUser, @PathVariable UUID ticketId, @RequestBody UUID technicianId) {
+        TicketResponseDto assignedTicket = ticketService.assignTechnician(authenticatedUser, ticketId, technicianId);
         return ResponseEntity.ok(assignedTicket);
     }
 
     @PatchMapping("/{ticketId}/resolve")
-    public ResponseEntity<TicketResponseDto> resolve(@PathVariable UUID ticketId, @RequestParam UUID technicianId) {
-        TicketResponseDto resolvedTicket = ticketService.resolve(ticketId, technicianId);
+    public ResponseEntity<TicketResponseDto> resolve(@AuthenticationPrincipal User authenticatedUser, @PathVariable UUID ticketId) {
+        TicketResponseDto resolvedTicket = ticketService.resolve(authenticatedUser, ticketId);
         return ResponseEntity.ok(resolvedTicket);
     }
 
     @PatchMapping("/{ticketId}/close")
-    public ResponseEntity<TicketResponseDto> close(@PathVariable UUID ticketId, @RequestParam UUID userId) {
-        TicketResponseDto closedTicket = ticketService.close(ticketId, userId);
+    public ResponseEntity<TicketResponseDto> close(@AuthenticationPrincipal User authenticatedUser, @PathVariable UUID ticketId) {
+        TicketResponseDto closedTicket = ticketService.close(authenticatedUser, ticketId);
         return ResponseEntity.ok(closedTicket);
     }
 }
