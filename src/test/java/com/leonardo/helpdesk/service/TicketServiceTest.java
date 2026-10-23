@@ -66,8 +66,7 @@ class TicketServiceTest {
         TicketRequestDto ticketRequestDto = new TicketRequestDto(
                 "Title",
                 "Description",
-                TicketPriority.HIGH,
-                requesterId
+                TicketPriority.HIGH
         );
 
         TicketResponseDto responseDto = new TicketResponseDto(
@@ -89,6 +88,7 @@ class TicketServiceTest {
         User user = new User();
         user.setActive(true);
         user.setName("Requester name");
+        user.setId(requesterId);
 
         when(userRepository.findById(requesterId))
                 .thenReturn(Optional.of(user));
@@ -102,7 +102,7 @@ class TicketServiceTest {
         when(ticketRepository.save(ticket))
                 .thenReturn(ticket);
 
-        TicketResponseDto result = ticketService.create(ticketRequestDto);
+        TicketResponseDto result = ticketService.create(user, ticketRequestDto);
 
         Assertions.assertEquals(ticketId, result.id());
         Assertions.assertEquals("Title", result.title());
@@ -130,20 +130,22 @@ class TicketServiceTest {
     void shouldThrowResourceNotFoundExceptionWhenRequesterDoesNotExist() {
         UUID requesterId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
 
+        User authenticatedUser = new User();
+        authenticatedUser.setId(requesterId);
+
         TicketRequestDto ticketRequestDto = new TicketRequestDto(
                 "Title",
                 "Description",
-                TicketPriority.HIGH,
-                requesterId
+                TicketPriority.HIGH
         );
 
         when(userRepository.findById(requesterId))
                 .thenReturn(Optional.empty());
 
         ResourceNotFoundException exception = Assertions.assertThrows(ResourceNotFoundException.class,
-                () -> ticketService.create(ticketRequestDto));
+                () -> ticketService.create(authenticatedUser, ticketRequestDto));
 
-        Assertions.assertEquals("Requester not found with ID: " + ticketRequestDto.requesterId(), exception.getMessage());
+        Assertions.assertEquals("Requester not found with ID: " + authenticatedUser.getId(), exception.getMessage());
 
         verify(userRepository).findById(requesterId);
         verifyNoInteractions(ticketRepository);
@@ -158,18 +160,18 @@ class TicketServiceTest {
         TicketRequestDto ticketRequestDto = new TicketRequestDto(
                 "Title",
                 "Description",
-                TicketPriority.HIGH,
-                requesterId
+                TicketPriority.HIGH
         );
 
         User user = new User();
         user.setActive(false);
+        user.setId(requesterId);
 
         when(userRepository.findById(requesterId))
                 .thenReturn(Optional.of(user));
 
         UserNotActiveException exception = Assertions.assertThrows(UserNotActiveException.class,
-                () -> ticketService.create(ticketRequestDto));
+                () -> ticketService.create(user, ticketRequestDto));
 
         Assertions.assertEquals("Requester is not active", exception.getMessage());
 
@@ -344,6 +346,7 @@ class TicketServiceTest {
         user.setName("Updater name");
         user.setActive(true);
         user.setRole(UserRole.USER);
+        user.setId(updaterId);
 
         when(ticketRepository.findById(ticketId))
                 .thenReturn(Optional.of(ticket));
@@ -357,7 +360,7 @@ class TicketServiceTest {
         when(ticketMapper.convertToResponseDto(ticket))
                 .thenReturn(responseDto);
 
-        TicketResponseDto result = ticketService.updateDetails(ticketId, detailsUpdateDto, updaterId);
+        TicketResponseDto result = ticketService.updateDetails(user, ticketId, detailsUpdateDto);
 
         Assertions.assertEquals("Title 2", ticket.getTitle());
         Assertions.assertEquals("Description 2", ticket.getDescription());
@@ -387,6 +390,7 @@ class TicketServiceTest {
         ticket.setStatus(TicketStatus.CLOSED);
 
         User user = new User();
+        user.setId(updaterId);
 
         when(ticketRepository.findById(ticketId))
                 .thenReturn(Optional.of(ticket));
@@ -395,7 +399,7 @@ class TicketServiceTest {
                 .thenReturn(Optional.of(user));
 
         InvalidTicketStatusException exception = Assertions.assertThrows(InvalidTicketStatusException.class,
-                () -> ticketService.updateDetails(ticketId, detailsUpdateDto, updaterId));
+                () -> ticketService.updateDetails(user, ticketId, detailsUpdateDto));
 
         Assertions.assertEquals("Ticket can't be updated because it's Closed", exception.getMessage());
 
@@ -422,6 +426,7 @@ class TicketServiceTest {
 
         User user = new User();
         user.setActive(false);
+        user.setId(updaterId);
 
         when(ticketRepository.findById(ticketId))
                 .thenReturn(Optional.of(ticket));
@@ -430,7 +435,7 @@ class TicketServiceTest {
                 .thenReturn(Optional.of(user));
 
         UserNotActiveException exception = Assertions.assertThrows(UserNotActiveException.class,
-                () -> ticketService.updateDetails(ticketId, detailsUpdateDto, updaterId));
+                () -> ticketService.updateDetails(user, ticketId, detailsUpdateDto));
 
         Assertions.assertEquals("User must be active to update this ticket", exception.getMessage());
 
@@ -451,11 +456,14 @@ class TicketServiceTest {
                 TicketPriority.MEDIUM
         );
 
+        User user = new User();
+        user.setId(updaterId);
+
         when(ticketRepository.findById(ticketId))
                 .thenReturn(Optional.empty());
 
         ResourceNotFoundException exception = Assertions.assertThrows(ResourceNotFoundException.class,
-                () -> ticketService.updateDetails(ticketId, detailsUpdateDto, updaterId));
+                () -> ticketService.updateDetails(user, ticketId, detailsUpdateDto));
 
         Assertions.assertEquals("Ticket not found with ID: " + ticketId, exception.getMessage());
 
@@ -476,6 +484,8 @@ class TicketServiceTest {
                 TicketPriority.MEDIUM
         );
         Ticket ticket = new Ticket();
+        User user = new User();
+        user.setId(updaterId);
 
         when(ticketRepository.findById(ticketId))
                 .thenReturn(Optional.of(ticket));
@@ -484,7 +494,7 @@ class TicketServiceTest {
                 .thenReturn(Optional.empty());
 
         ResourceNotFoundException exception = Assertions.assertThrows(ResourceNotFoundException.class,
-                () -> ticketService.updateDetails(ticketId, detailsUpdateDto, updaterId));
+                () -> ticketService.updateDetails(user, ticketId, detailsUpdateDto));
 
         Assertions.assertEquals("User not found with ID: " + updaterId, exception.getMessage());
 
@@ -504,15 +514,19 @@ class TicketServiceTest {
                 "Description 2",
                 TicketPriority.MEDIUM
         );
+
         Ticket ticket = new Ticket();
         ticket.setTitle("Title");
         ticket.setDescription("Description");
         ticket.setStatus(TicketStatus.OPEN);
         ticket.setPriority(TicketPriority.HIGH);
+
         User user = new User();
         user.setName("Updater name");
         user.setActive(true);
         user.setRole(UserRole.USER);
+        user.setId(updaterId);
+
         TicketResponseDto responseDto = new TicketResponseDto(
                 ticketId, "Title", "Description 2", TicketStatus.OPEN, TicketPriority.MEDIUM,
                 "Requester name", "requester@email.com", UserRole.USER,
@@ -524,7 +538,7 @@ class TicketServiceTest {
         when(ticketRepository.save(ticket)).thenReturn(ticket);
         when(ticketMapper.convertToResponseDto(ticket)).thenReturn(responseDto);
 
-        TicketResponseDto result = ticketService.updateDetails(ticketId, detailsUpdateDto, updaterId);
+        TicketResponseDto result = ticketService.updateDetails(user, ticketId, detailsUpdateDto);
 
         Assertions.assertEquals("Title", ticket.getTitle());
         Assertions.assertEquals("Description 2", ticket.getDescription());
@@ -547,15 +561,19 @@ class TicketServiceTest {
                 "Description 2",
                 TicketPriority.MEDIUM
         );
+
         Ticket ticket = new Ticket();
         ticket.setTitle("Title");
         ticket.setDescription("Description");
         ticket.setStatus(TicketStatus.OPEN);
         ticket.setPriority(TicketPriority.HIGH);
+
         User user = new User();
         user.setName("Updater name");
         user.setActive(true);
         user.setRole(UserRole.USER);
+        user.setId(updaterId);
+
         TicketResponseDto responseDto = new TicketResponseDto(
                 ticketId, "Title", "Description 2", TicketStatus.OPEN, TicketPriority.MEDIUM,
                 "Requester name", "requester@email.com", UserRole.USER,
@@ -567,7 +585,7 @@ class TicketServiceTest {
         when(ticketRepository.save(ticket)).thenReturn(ticket);
         when(ticketMapper.convertToResponseDto(ticket)).thenReturn(responseDto);
 
-        TicketResponseDto result = ticketService.updateDetails(ticketId, detailsUpdateDto, updaterId);
+        TicketResponseDto result = ticketService.updateDetails(user, ticketId, detailsUpdateDto);
 
         Assertions.assertEquals("Title", ticket.getTitle());
         Assertions.assertEquals("Description 2", ticket.getDescription());
@@ -590,15 +608,19 @@ class TicketServiceTest {
                 null,
                 TicketPriority.MEDIUM
         );
+
         Ticket ticket = new Ticket();
         ticket.setTitle("Title");
         ticket.setDescription("Description");
         ticket.setStatus(TicketStatus.OPEN);
         ticket.setPriority(TicketPriority.HIGH);
+
         User user = new User();
         user.setName("Updater name");
         user.setActive(true);
         user.setRole(UserRole.USER);
+        user.setId(updaterId);
+
         TicketResponseDto responseDto = new TicketResponseDto(
                 ticketId, "Title 2", "Description", TicketStatus.OPEN, TicketPriority.MEDIUM,
                 "Requester name", "requester@email.com", UserRole.USER,
@@ -610,7 +632,7 @@ class TicketServiceTest {
         when(ticketRepository.save(ticket)).thenReturn(ticket);
         when(ticketMapper.convertToResponseDto(ticket)).thenReturn(responseDto);
 
-        TicketResponseDto result = ticketService.updateDetails(ticketId, detailsUpdateDto, updaterId);
+        TicketResponseDto result = ticketService.updateDetails(user, ticketId, detailsUpdateDto);
 
         Assertions.assertEquals("Title 2", ticket.getTitle());
         Assertions.assertEquals("Description", ticket.getDescription());
@@ -633,15 +655,19 @@ class TicketServiceTest {
                 " ",
                 TicketPriority.MEDIUM
         );
+
         Ticket ticket = new Ticket();
         ticket.setTitle("Title");
         ticket.setDescription("Description");
         ticket.setStatus(TicketStatus.OPEN);
         ticket.setPriority(TicketPriority.HIGH);
+
         User user = new User();
         user.setName("Updater name");
         user.setActive(true);
         user.setRole(UserRole.USER);
+        user.setId(updaterId);
+
         TicketResponseDto responseDto = new TicketResponseDto(
                 ticketId, "Title 2", "Description", TicketStatus.OPEN, TicketPriority.MEDIUM,
                 "Requester name", "requester@email.com", UserRole.USER,
@@ -653,7 +679,7 @@ class TicketServiceTest {
         when(ticketRepository.save(ticket)).thenReturn(ticket);
         when(ticketMapper.convertToResponseDto(ticket)).thenReturn(responseDto);
 
-        TicketResponseDto result = ticketService.updateDetails(ticketId, detailsUpdateDto, updaterId);
+        TicketResponseDto result = ticketService.updateDetails(user, ticketId, detailsUpdateDto);
 
         Assertions.assertEquals("Title 2", ticket.getTitle());
         Assertions.assertEquals("Description", ticket.getDescription());
@@ -676,15 +702,19 @@ class TicketServiceTest {
                 "Description 2",
                 null
         );
+
         Ticket ticket = new Ticket();
         ticket.setTitle("Title");
         ticket.setDescription("Description");
         ticket.setStatus(TicketStatus.OPEN);
         ticket.setPriority(TicketPriority.HIGH);
+
         User user = new User();
         user.setName("Updater name");
         user.setActive(true);
         user.setRole(UserRole.USER);
+        user.setId(updaterId);
+
         TicketResponseDto responseDto = new TicketResponseDto(
                 ticketId, "Title 2", "Description 2", TicketStatus.OPEN, TicketPriority.HIGH,
                 "Requester name", "requester@email.com", UserRole.USER,
@@ -696,7 +726,7 @@ class TicketServiceTest {
         when(ticketRepository.save(ticket)).thenReturn(ticket);
         when(ticketMapper.convertToResponseDto(ticket)).thenReturn(responseDto);
 
-        TicketResponseDto result = ticketService.updateDetails(ticketId, detailsUpdateDto, updaterId);
+        TicketResponseDto result = ticketService.updateDetails(user, ticketId, detailsUpdateDto);
 
         Assertions.assertEquals("Title 2", ticket.getTitle());
         Assertions.assertEquals("Description 2", ticket.getDescription());
@@ -714,15 +744,19 @@ class TicketServiceTest {
     void shouldKeepTicketDetailsUnchangedWhenUpdateDtoIsNull() {
         UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
         UUID updaterId = UUID.fromString("7b3e9a42-6f81-4c25-a9d0-13e8b57c24f6");
+
         Ticket ticket = new Ticket();
         ticket.setTitle("Title");
         ticket.setDescription("Description");
         ticket.setStatus(TicketStatus.OPEN);
         ticket.setPriority(TicketPriority.HIGH);
+
         User user = new User();
         user.setName("Updater name");
         user.setActive(true);
         user.setRole(UserRole.USER);
+        user.setId(updaterId);
+
         TicketResponseDto responseDto = new TicketResponseDto(
                 ticketId, "Title", "Description", TicketStatus.OPEN, TicketPriority.HIGH,
                 "Requester name", "requester@email.com", UserRole.USER,
@@ -734,7 +768,7 @@ class TicketServiceTest {
         when(ticketRepository.save(ticket)).thenReturn(ticket);
         when(ticketMapper.convertToResponseDto(ticket)).thenReturn(responseDto);
 
-        TicketResponseDto result = ticketService.updateDetails(ticketId, null, updaterId);
+        TicketResponseDto result = ticketService.updateDetails(user, ticketId, null);
 
         Assertions.assertEquals("Title", ticket.getTitle());
         Assertions.assertEquals("Description", ticket.getDescription());
@@ -757,12 +791,16 @@ class TicketServiceTest {
                 "Description 2",
                 TicketPriority.MEDIUM
         );
+
         Ticket ticket = new Ticket();
         ticket.setStatus(TicketStatus.OPEN);
+
         User technician = new User();
         technician.setName("Technician name");
         technician.setActive(true);
         technician.setRole(UserRole.TECHNICIAN);
+        technician.setId(updaterId);
+
         TicketResponseDto responseDto = new TicketResponseDto(
                 ticketId, "Title 2", "Description 2", TicketStatus.OPEN, TicketPriority.MEDIUM,
                 "Requester name", "requester@email.com", UserRole.USER,
@@ -774,7 +812,7 @@ class TicketServiceTest {
         when(ticketRepository.save(ticket)).thenReturn(ticket);
         when(ticketMapper.convertToResponseDto(ticket)).thenReturn(responseDto);
 
-        TicketResponseDto result = ticketService.updateDetails(ticketId, detailsUpdateDto, updaterId);
+        TicketResponseDto result = ticketService.updateDetails(technician, ticketId, detailsUpdateDto);
 
         Assertions.assertEquals("Title 2", ticket.getTitle());
         Assertions.assertEquals("Description 2", ticket.getDescription());
@@ -786,5 +824,116 @@ class TicketServiceTest {
         verify(ticketRepository).save(ticket);
         verify(ticketMapper).convertToResponseDto(ticket);
         verify(ticketHistoryService).record(ticket, technician, TicketAction.TICKET_DETAILS_UPDATED, "Ticket updated by technician Technician name");
+    }
+
+    @Test
+    void shouldAssignTechnician() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID userId = UUID.fromString("7b3e9a42-6f81-4c25-a9d0-13e8b57c24f6");
+        UUID technicianId = UUID.fromString("8c4f0b53-7a92-4d36-b0e1-24f9c68d35a7");
+        LocalDateTime now = LocalDateTime.now();
+
+        Ticket ticket = new Ticket();
+        ticket.setStatus(TicketStatus.OPEN);
+
+        User technician = new User();
+        technician.setName("Technician name");
+        technician.setActive(true);
+        technician.setRole(UserRole.TECHNICIAN);
+        technician.setId(technicianId);
+
+        User user = new User();
+        user.setId(userId);
+
+        TicketResponseDto responseDto = new TicketResponseDto(
+                ticketId, "Title", "Description", TicketStatus.IN_PROGRESS, TicketPriority.MEDIUM,
+                "Requester name", "requester@email.com", UserRole.USER,
+                "Technician name", "tech@email.com", now, now, null
+        );
+
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+        when(userRepository.findById(technicianId)).thenReturn(Optional.of(technician));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(ticketMapper.convertToResponseDto(ticket)).thenReturn(responseDto);
+        when(ticketRepository.save(ticket)).thenReturn(ticket);
+
+        TicketResponseDto result = ticketService.assignTechnician(user, ticketId, technicianId);
+
+        Assertions.assertEquals("Title", result.title());
+        Assertions.assertEquals("Description", result.description());
+        Assertions.assertEquals("Requester name", result.requesterName());
+        Assertions.assertEquals("requester@email.com", result.requesterEmail());
+        Assertions.assertEquals("Technician name", result.technicianName());
+        Assertions.assertEquals("tech@email.com", result.technicianEmail());
+        Assertions.assertEquals(TicketStatus.IN_PROGRESS, ticket.getStatus());
+        Assertions.assertSame(technician, ticket.getTechnician());
+        Assertions.assertEquals(TicketPriority.MEDIUM, result.priority());
+        Assertions.assertEquals(UserRole.USER, result.requesterRole());
+        Assertions.assertEquals(now, result.createdAt());
+        Assertions.assertEquals(now, result.updatedAt());
+        Assertions.assertNull(result.resolvedAt());
+
+        verify(userRepository).findById(userId);
+        verify(userRepository).findById(technicianId);
+        verify(ticketRepository).findById(ticketId);
+        verify(ticketMapper).convertToResponseDto(ticket);
+        verify(ticketRepository).save(ticket);
+        verify(ticketHistoryService).record(ticket, user, TicketAction.TICKET_ASSIGNED, "Ticket assigned to technician Technician name");
+    }
+
+    @Test
+    void shouldResolveTicket() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID technicianId = UUID.fromString("8c4f0b53-7a92-4d36-b0e1-24f9c68d35a7");
+
+        LocalDateTime now = LocalDateTime.now();
+
+        User technician = new User();
+        technician.setId(technicianId);
+        technician.setRole(UserRole.TECHNICIAN);
+        technician.setActive(true);
+        technician.setName("Technician name");
+
+        Ticket ticket = new Ticket();
+        ticket.setId(ticketId);
+        ticket.setStatus(TicketStatus.IN_PROGRESS);
+        ticket.setTechnician(technician);
+
+        TicketResponseDto responseDto = new TicketResponseDto(
+                ticketId, "Title", "Description", TicketStatus.RESOLVED, TicketPriority.MEDIUM,
+                "Requester name", "requester@email.com", UserRole.USER,
+                "Technician name", "tech@email.com", now, now, now
+        );
+
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+        when(userRepository.findById(technicianId)).thenReturn(Optional.of(technician));
+        when(ticketRepository.save(ticket)).thenReturn(ticket);
+        when(ticketMapper.convertToResponseDto(ticket)).thenReturn(responseDto);
+
+        LocalDateTime beforeResolve = LocalDateTime.now();
+        TicketResponseDto result = ticketService.resolve(technician, ticketId);
+        LocalDateTime afterResolve = LocalDateTime.now();
+
+        Assertions.assertEquals("Title", result.title());
+        Assertions.assertEquals("Description", result.description());
+        Assertions.assertEquals("Requester name", result.requesterName());
+        Assertions.assertEquals("requester@email.com", result.requesterEmail());
+        Assertions.assertEquals("Technician name", result.technicianName());
+        Assertions.assertEquals("tech@email.com", result.technicianEmail());
+        Assertions.assertEquals(TicketStatus.RESOLVED, ticket.getStatus());
+        Assertions.assertSame(technician, ticket.getTechnician());
+        Assertions.assertEquals(TicketPriority.MEDIUM, result.priority());
+        Assertions.assertEquals(UserRole.USER, result.requesterRole());
+        Assertions.assertEquals(now, result.createdAt());
+        Assertions.assertEquals(now, result.updatedAt());
+        Assertions.assertNotNull(ticket.getResolvedAt());
+        Assertions.assertFalse(ticket.getResolvedAt().isBefore(beforeResolve));
+        Assertions.assertFalse(ticket.getResolvedAt().isAfter(afterResolve));
+
+        verify(userRepository).findById(technicianId);
+        verify(ticketRepository).findById(ticketId);
+        verify(ticketMapper).convertToResponseDto(ticket);
+        verify(ticketRepository).save(ticket);
+        verify(ticketHistoryService).record(ticket, technician, TicketAction.TICKET_RESOLVED, "Ticket resolved by technician Technician name");
     }
 }
