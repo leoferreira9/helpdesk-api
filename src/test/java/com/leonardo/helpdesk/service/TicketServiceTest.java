@@ -936,4 +936,58 @@ class TicketServiceTest {
         verify(ticketRepository).save(ticket);
         verify(ticketHistoryService).record(ticket, technician, TicketAction.TICKET_RESOLVED, "Ticket resolved by technician Technician name");
     }
+
+    @Test
+    void shouldCloseTicket() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID userId = UUID.fromString("8c4f0b53-7a92-4d36-b0e1-24f9c68d35a7");
+
+        LocalDateTime now = LocalDateTime.now();
+
+        User user = new User();
+        user.setId(userId);
+        user.setActive(true);
+        user.setRole(UserRole.USER);
+        user.setName("Requester name");
+        user.setEmail("requester@email.com");
+
+        Ticket ticket = new Ticket();
+        ticket.setId(ticketId);
+        ticket.setStatus(TicketStatus.RESOLVED);
+        ticket.setRequester(user);
+        ticket.setResolvedAt(now);
+
+        TicketResponseDto responseDto = new TicketResponseDto(
+                ticketId, "Title", "Description", TicketStatus.CLOSED, TicketPriority.MEDIUM,
+                "Requester name", "requester@email.com", UserRole.USER,
+                "Technician name", "tech@email.com", now, now, now
+        );
+
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(ticketRepository.save(ticket)).thenReturn(ticket);
+        when(ticketMapper.convertToResponseDto(ticket)).thenReturn(responseDto);
+
+        TicketResponseDto result = ticketService.close(user, ticketId);
+
+        Assertions.assertEquals("Title", result.title());
+        Assertions.assertEquals("Description", result.description());
+        Assertions.assertEquals("Requester name", result.requesterName());
+        Assertions.assertEquals("requester@email.com", result.requesterEmail());
+        Assertions.assertEquals("Technician name", result.technicianName());
+        Assertions.assertEquals("tech@email.com", result.technicianEmail());
+        Assertions.assertEquals(TicketStatus.CLOSED, ticket.getStatus());
+        Assertions.assertSame(user, ticket.getRequester());
+        Assertions.assertEquals(TicketPriority.MEDIUM, result.priority());
+        Assertions.assertEquals(UserRole.USER, result.requesterRole());
+        Assertions.assertEquals(now, result.createdAt());
+        Assertions.assertEquals(now, result.updatedAt());
+        Assertions.assertEquals(now, ticket.getResolvedAt());
+
+        verify(userRepository).findById(userId);
+        verify(ticketRepository).findById(ticketId);
+        verify(ticketMapper).convertToResponseDto(ticket);
+        verify(ticketRepository).save(ticket);
+        verify(ticketHistoryService).record(ticket, user, TicketAction.TICKET_CLOSED, "Ticket closed by Requester name");
+    }
 }
