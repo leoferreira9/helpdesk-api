@@ -9,11 +9,7 @@ import com.leonardo.helpdesk.enums.TicketAction;
 import com.leonardo.helpdesk.enums.TicketPriority;
 import com.leonardo.helpdesk.enums.TicketStatus;
 import com.leonardo.helpdesk.enums.UserRole;
-import com.leonardo.helpdesk.exception.InvalidTicketStatusException;
-import com.leonardo.helpdesk.exception.ResourceNotFoundException;
-import com.leonardo.helpdesk.exception.RoleNotAllowedException;
-import com.leonardo.helpdesk.exception.TicketAlreadyAssignedException;
-import com.leonardo.helpdesk.exception.UserNotActiveException;
+import com.leonardo.helpdesk.exception.*;
 import com.leonardo.helpdesk.mapper.TicketMapper;
 import com.leonardo.helpdesk.repository.TicketRepository;
 import com.leonardo.helpdesk.repository.UserRepository;
@@ -1135,6 +1131,228 @@ class TicketServiceTest {
         verify(ticketMapper).convertToResponseDto(ticket);
         verify(ticketRepository).save(ticket);
         verify(ticketHistoryService).record(ticket, technician, TicketAction.TICKET_RESOLVED, "Ticket resolved by technician Technician name");
+    }
+
+    @Test
+    void shouldThrowInvalidTicketStatusExceptionWhenTicketIsAlreadyResolved() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID userId = UUID.fromString("8c4f0b53-7a92-4d36-b0e1-24f9c68d35a7");
+
+        Ticket ticket = new Ticket();
+        ticket.setStatus(TicketStatus.RESOLVED);
+
+        User user = new User();
+        user.setId(userId);
+
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        InvalidTicketStatusException exception = Assertions.assertThrows(InvalidTicketStatusException.class,
+                () -> ticketService.resolve(user, ticketId));
+
+        Assertions.assertEquals("Ticket already resolved", exception.getMessage());
+
+        verifyNoInteractions(ticketMapper);
+        verifyNoInteractions(ticketHistoryService);
+        verify(ticketRepository, never()).save(any());
+        verify(userRepository).findById(userId);
+        verify(ticketRepository).findById(ticketId);
+    }
+
+    @Test
+    void shouldThrowInvalidTicketStatusExceptionWhenTicketStatusIsNotInProgress() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID userId = UUID.fromString("8c4f0b53-7a92-4d36-b0e1-24f9c68d35a7");
+
+        Ticket ticket = new Ticket();
+        ticket.setStatus(TicketStatus.CLOSED);
+
+        User user = new User();
+        user.setId(userId);
+
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        InvalidTicketStatusException exception = Assertions.assertThrows(InvalidTicketStatusException.class,
+                () -> ticketService.resolve(user, ticketId));
+
+        Assertions.assertEquals("Ticket must be In Progress to be resolved", exception.getMessage());
+
+        verifyNoInteractions(ticketMapper);
+        verifyNoInteractions(ticketHistoryService);
+        verify(ticketRepository, never()).save(any());
+        verify(userRepository).findById(userId);
+        verify(ticketRepository).findById(ticketId);
+    }
+
+    @Test
+    void shouldThrowRoleNotAllowedExceptionWhenAuthenticatedUserIsNotATechnician() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID userId = UUID.fromString("8c4f0b53-7a92-4d36-b0e1-24f9c68d35a7");
+
+        Ticket ticket = new Ticket();
+        ticket.setStatus(TicketStatus.IN_PROGRESS);
+
+        User user = new User();
+        user.setRole(UserRole.USER);
+        user.setId(userId);
+
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        RoleNotAllowedException exception = Assertions.assertThrows(RoleNotAllowedException.class,
+                () -> ticketService.resolve(user, ticketId));
+
+        Assertions.assertEquals("User must be a technician to resolve this ticket", exception.getMessage());
+
+        verifyNoInteractions(ticketMapper);
+        verifyNoInteractions(ticketHistoryService);
+        verify(ticketRepository, never()).save(any());
+        verify(userRepository).findById(userId);
+        verify(ticketRepository).findById(ticketId);
+    }
+
+    @Test
+    void shouldThrowUserNotActiveExceptionWhenTechnicianIsNotActive() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID userId = UUID.fromString("8c4f0b53-7a92-4d36-b0e1-24f9c68d35a7");
+
+        Ticket ticket = new Ticket();
+        ticket.setStatus(TicketStatus.IN_PROGRESS);
+
+        User technician = new User();
+        technician.setRole(UserRole.TECHNICIAN);
+        technician.setActive(false);
+        technician.setId(userId);
+
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(technician));
+
+        UserNotActiveException exception = Assertions.assertThrows(UserNotActiveException.class,
+                () -> ticketService.resolve(technician, ticketId));
+
+        Assertions.assertEquals("Technician is not active", exception.getMessage());
+
+        verifyNoInteractions(ticketMapper);
+        verifyNoInteractions(ticketHistoryService);
+        verify(ticketRepository, never()).save(any());
+        verify(userRepository).findById(userId);
+        verify(ticketRepository).findById(ticketId);
+    }
+
+    @Test
+    void shouldThrowTechnicianNotResponsibleExceptionWhenAnotherTechnicianIsAssignedToTicket() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID userId = UUID.fromString("8c4f0b53-7a92-4d36-b0e1-24f9c68d35a7");
+        UUID user2Id = UUID.fromString("7b3e9a42-6f81-4c25-a9d0-13e8b57c24f6");
+
+        User technician = new User();
+        technician.setRole(UserRole.TECHNICIAN);
+        technician.setActive(true);
+        technician.setId(userId);
+
+        User anotherTechnician = new User();
+        anotherTechnician.setRole(UserRole.TECHNICIAN);
+        anotherTechnician.setActive(true);
+        anotherTechnician.setId(user2Id);
+
+        Ticket ticket = new Ticket();
+        ticket.setStatus(TicketStatus.IN_PROGRESS);
+        ticket.setTechnician(anotherTechnician);
+
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(technician));
+
+        TechnicianNotResponsibleException exception = Assertions.assertThrows(TechnicianNotResponsibleException.class,
+                () -> ticketService.resolve(technician, ticketId));
+
+        Assertions.assertEquals("Technician not responsible for this ticket", exception.getMessage());
+
+        verifyNoInteractions(ticketMapper);
+        verifyNoInteractions(ticketHistoryService);
+        verify(ticketRepository, never()).save(any());
+        verify(userRepository).findById(userId);
+        verify(ticketRepository).findById(ticketId);
+    }
+
+    @Test
+    void shouldThrowTechnicianNotResponsibleExceptionWhenTicketHasNoAssignedTechnician() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID userId = UUID.fromString("8c4f0b53-7a92-4d36-b0e1-24f9c68d35a7");
+
+        Ticket ticket = new Ticket();
+        ticket.setStatus(TicketStatus.IN_PROGRESS);
+
+        User technician = new User();
+        technician.setRole(UserRole.TECHNICIAN);
+        technician.setActive(true);
+        technician.setId(userId);
+
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(technician));
+
+        TechnicianNotResponsibleException exception = Assertions.assertThrows(TechnicianNotResponsibleException.class,
+                () -> ticketService.resolve(technician, ticketId));
+
+        Assertions.assertEquals("Ticket must have a technician to be resolved", exception.getMessage());
+
+        verifyNoInteractions(ticketMapper);
+        verifyNoInteractions(ticketHistoryService);
+        verify(ticketRepository, never()).save(any());
+        verify(userRepository).findById(userId);
+        verify(ticketRepository).findById(ticketId);
+    }
+
+    @Test
+    void shouldThrowResourceNotFoundExceptionWhenAuthenticatedTechnicianIsNotFound() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID userId = UUID.fromString("8c4f0b53-7a92-4d36-b0e1-24f9c68d35a7");
+
+        Ticket ticket = new Ticket();
+        ticket.setStatus(TicketStatus.IN_PROGRESS);
+
+        User technician = new User();
+        technician.setRole(UserRole.TECHNICIAN);
+        technician.setActive(true);
+        technician.setId(userId);
+
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+        ResourceNotFoundException exception = Assertions.assertThrows(ResourceNotFoundException.class,
+                () -> ticketService.resolve(technician, ticketId));
+
+        Assertions.assertEquals("User not found with ID: " + userId, exception.getMessage());
+
+        verifyNoInteractions(ticketMapper);
+        verifyNoInteractions(ticketHistoryService);
+        verify(ticketRepository, never()).save(any());
+        verify(userRepository).findById(userId);
+        verify(ticketRepository).findById(ticketId);
+    }
+
+    @Test
+    void shouldThrowResourceNotFoundExceptionWhenTicketIsNotFound() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID userId = UUID.fromString("8c4f0b53-7a92-4d36-b0e1-24f9c68d35a7");
+
+        User technician = new User();
+        technician.setRole(UserRole.TECHNICIAN);
+        technician.setActive(true);
+        technician.setId(userId);
+
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.empty());
+
+        ResourceNotFoundException exception = Assertions.assertThrows(ResourceNotFoundException.class,
+                () -> ticketService.resolve(technician, ticketId));
+
+        Assertions.assertEquals("Ticket not found with ID: " + ticketId, exception.getMessage());
+
+        verifyNoInteractions(ticketMapper);
+        verifyNoInteractions(ticketHistoryService);
+        verify(ticketRepository, never()).save(any());
+        verifyNoInteractions(userRepository);
+        verify(ticketRepository).findById(ticketId);
     }
 
     @Test
