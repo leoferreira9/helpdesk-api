@@ -1408,4 +1408,109 @@ class TicketServiceTest {
         verify(ticketRepository).save(ticket);
         verify(ticketHistoryService).record(ticket, user, TicketAction.TICKET_CLOSED, "Ticket closed by Requester name");
     }
+
+    @Test
+    void shouldThrowInvalidTicketStatusExceptionWhenTicketIsNotResolved() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID userId = UUID.fromString("8c4f0b53-7a92-4d36-b0e1-24f9c68d35a7");
+
+        Ticket ticket = new Ticket();
+        ticket.setId(ticketId);
+        ticket.setStatus(TicketStatus.IN_PROGRESS);
+
+        User user = new User();
+        user.setId(userId);
+
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        InvalidTicketStatusException exception = Assertions.assertThrows(InvalidTicketStatusException.class,
+                () -> ticketService.close(user, ticketId));
+
+        Assertions.assertEquals("Ticket must be Resolved to be Closed", exception.getMessage());
+
+        verify(ticketRepository).findById(ticketId);
+        verify(userRepository).findById(userId);
+        verifyNoInteractions(ticketMapper);
+        verify(ticketRepository, never()).save(ticket);
+        verifyNoInteractions(ticketHistoryService);
+    }
+
+    @Test
+    void shouldThrowUserNotActiveExceptionWhenAuthenticatedUserIsInactive() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID userId = UUID.fromString("8c4f0b53-7a92-4d36-b0e1-24f9c68d35a7");
+
+        Ticket ticket = new Ticket();
+        ticket.setId(ticketId);
+        ticket.setStatus(TicketStatus.RESOLVED);
+
+        User user = new User();
+        user.setId(userId);
+        user.setActive(false);
+
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        UserNotActiveException exception = Assertions.assertThrows(UserNotActiveException.class,
+                () -> ticketService.close(user, ticketId));
+
+        Assertions.assertEquals("User must be active to close this ticket", exception.getMessage());
+
+        verify(ticketRepository).findById(ticketId);
+        verify(userRepository).findById(userId);
+        verifyNoInteractions(ticketMapper);
+        verify(ticketRepository, never()).save(ticket);
+        verifyNoInteractions(ticketHistoryService);
+    }
+
+    @Test
+    void shouldThrowResourceNotFoundExceptionWhenClosingNonexistentTicket() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID userId = UUID.fromString("8c4f0b53-7a92-4d36-b0e1-24f9c68d35a7");
+
+        User user = new User();
+        user.setId(userId);
+        user.setActive(true);
+
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.empty());
+
+        ResourceNotFoundException exception = Assertions.assertThrows(ResourceNotFoundException.class,
+                () -> ticketService.close(user, ticketId));
+
+        Assertions.assertEquals("Ticket not found with ID: " + ticketId, exception.getMessage());
+
+        verify(ticketRepository).findById(ticketId);
+        verifyNoInteractions(userRepository);
+        verifyNoInteractions(ticketMapper);
+        verify(ticketRepository, never()).save(any());
+        verifyNoInteractions(ticketHistoryService);
+    }
+
+    @Test
+    void shouldThrowResourceNotFoundExceptionWhenClosingTicketByNonexistentUser() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID userId = UUID.fromString("8c4f0b53-7a92-4d36-b0e1-24f9c68d35a7");
+
+
+        Ticket ticket = new Ticket();
+        ticket.setId(ticketId);
+
+        User user = new User();
+        user.setId(userId);
+
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+        ResourceNotFoundException exception = Assertions.assertThrows(ResourceNotFoundException.class,
+                () -> ticketService.close(user, ticketId));
+
+        Assertions.assertEquals("User not found with ID: " + userId, exception.getMessage());
+
+        verifyNoInteractions(ticketMapper);
+        verifyNoInteractions(ticketHistoryService);
+        verify(ticketRepository).findById(ticketId);
+        verify(userRepository).findById(userId);
+        verify(ticketRepository, never()).save(any());
+    }
 }
