@@ -4,6 +4,7 @@ import com.leonardo.helpdesk.security.JwtAuthenticationFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -44,6 +45,8 @@ public class SecurityConfig {
                         .authenticationEntryPoint(customAuthenticationEntryPoint)
                 )
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/tickets/{ticketId}/assign").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/tickets/{ticketId}/resolve").hasRole("TECHNICIAN")
                         .requestMatchers("/login", "/register", "/verify-email").permitAll()
                         .anyRequest().authenticated()
                 )
