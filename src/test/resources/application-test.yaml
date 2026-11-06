@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: helpdesk-api
+
+  security:
+    jwt:
+      secret: secret-key-test
+      expiration: 3600000
+
+  mail:
+    host: localhost
+    port: 5429
+    username: test
+    password: test123
+
+INITIAL_ADMIN_NAME: testAdmin
+INITIAL_ADMIN_EMAIL: admin@testemail.com
+INITIAL_ADMIN_PASSWORD: test123

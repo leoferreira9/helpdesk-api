@@ -67,8 +67,8 @@ public class TicketController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<TicketResponseDto> findById(@PathVariable UUID id) {
-        TicketResponseDto ticket = ticketService.findById(id);
+    public ResponseEntity<TicketResponseDto> findById(@AuthenticationPrincipal User authenticatedUser, @PathVariable UUID id) {
+        TicketResponseDto ticket = ticketService.findById(authenticatedUser, id);
         return ResponseEntity.ok(ticket);
     }
 
@@ -86,9 +86,10 @@ public class TicketController {
             @RequestParam(required = false, name = "requesterId") UUID requester,
             @RequestParam(required = false, name = "technicianId") UUID technician,
             @RequestParam(required = false, name = "start") @DateTimeFormat(pattern = "dd/MM/yyyy") LocalDate startDate,
-            @RequestParam(required = false, name = "end") @DateTimeFormat(pattern = "dd/MM/yyyy") LocalDate endDate
+            @RequestParam(required = false, name = "end") @DateTimeFormat(pattern = "dd/MM/yyyy") LocalDate endDate,
+            @AuthenticationPrincipal User authenticatedUser
             ) {
-        Page<TicketResponseDto> tickets = ticketService.findAll(pageable, status, priority, requester, technician, startDate, endDate);
+        Page<TicketResponseDto> tickets = ticketService.findAll(authenticatedUser, pageable, status, priority, requester, technician, startDate, endDate);
         return ResponseEntity.ok(tickets);
     }
 

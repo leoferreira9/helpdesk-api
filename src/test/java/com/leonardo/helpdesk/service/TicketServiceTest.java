@@ -25,6 +25,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.access.AccessDeniedException;
 
 
 import java.time.LocalDate;
@@ -182,9 +183,18 @@ class TicketServiceTest {
     @Test
     void shouldFindTicketById() {
         UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID userId = UUID.fromString("6f4a8c21-3d97-4b5e-a162-8e0f73c9d514");
         Ticket ticket = new Ticket();
         LocalDateTime createdAt = LocalDateTime.now();
         LocalDateTime updatedAt = LocalDateTime.now();
+
+        User authenticatedUser = new User();
+        authenticatedUser.setId(userId);
+        authenticatedUser.setRole(UserRole.USER);
+        authenticatedUser.setName("Requester name");
+        authenticatedUser.setEmail("requester@email.com");
+
+        ticket.setRequester(authenticatedUser);
 
         TicketResponseDto responseDto = new TicketResponseDto(
                 ticketId,
@@ -208,7 +218,7 @@ class TicketServiceTest {
         when(ticketMapper.convertToResponseDto(ticket))
                 .thenReturn(responseDto);
 
-        TicketResponseDto result = ticketService.findById(ticketId);
+        TicketResponseDto result = ticketService.findById(authenticatedUser, ticketId);
 
         Assertions.assertEquals(ticketId, result.id());
         Assertions.assertEquals("Title", result.title());
@@ -223,6 +233,9 @@ class TicketServiceTest {
         Assertions.assertEquals(createdAt, result.createdAt());
         Assertions.assertEquals(updatedAt, result.updatedAt());
         Assertions.assertNull(result.resolvedAt());
+        Assertions.assertEquals(authenticatedUser.getName(), result.requesterName());
+        Assertions.assertEquals(authenticatedUser.getEmail(), result.requesterEmail());
+        Assertions.assertEquals(authenticatedUser.getRole(), result.requesterRole());
 
         verify(ticketRepository).findById(ticketId);
         verify(ticketMapper).convertToResponseDto(ticket);
@@ -231,14 +244,290 @@ class TicketServiceTest {
     @Test
     void shouldThrowResourceNotFoundExceptionWhenFindingTicketById() {
         UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID userId = UUID.fromString("6f4a8c21-3d97-4b5e-a162-8e0f73c9d514");
+
+        User authenticatedUser = new User();
+        authenticatedUser.setId(userId);
+        authenticatedUser.setRole(UserRole.USER);
+        authenticatedUser.setName("Name");
+        authenticatedUser.setEmail("email@email.com");
 
         when(ticketRepository.findById(ticketId))
                 .thenReturn(Optional.empty());
 
         ResourceNotFoundException exception = Assertions.assertThrows(ResourceNotFoundException.class,
-                () -> ticketService.findById(ticketId));
+                () -> ticketService.findById(authenticatedUser, ticketId));
 
         Assertions.assertEquals("Ticket not found with ID: " + ticketId, exception.getMessage());
+
+        verify(ticketRepository).findById(ticketId);
+        verifyNoInteractions(ticketMapper);
+    }
+
+    @Test
+    void shouldFindTicketWhenAuthenticatedUserIsRequester() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID userId = UUID.fromString("6f4a8c21-3d97-4b5e-a162-8e0f73c9d514");
+        LocalDateTime now = LocalDateTime.now();
+
+        User authenticatedUser = new User();
+        authenticatedUser.setId(userId);
+        authenticatedUser.setName("Requester name");
+        authenticatedUser.setEmail("requester@email.com");
+        authenticatedUser.setRole(UserRole.USER);
+        authenticatedUser.setActive(true);
+
+        Ticket ticket = new Ticket();
+        ticket.setId(ticketId);
+        ticket.setRequester(authenticatedUser);
+
+        TicketResponseDto responseDto = new TicketResponseDto(
+                ticketId,
+                "Title",
+                "Description",
+                TicketStatus.OPEN,
+                TicketPriority.HIGH,
+                "Requester name",
+                "requester@email.com",
+                UserRole.USER,
+                null,
+                null,
+                now,
+                now,
+                null
+        );
+
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+        when(ticketMapper.convertToResponseDto(ticket)).thenReturn(responseDto);
+
+        TicketResponseDto result = ticketService.findById(authenticatedUser, ticketId);
+
+        Assertions.assertEquals(ticketId, result.id());
+        Assertions.assertEquals("Title", result.title());
+        Assertions.assertEquals("Description", result.description());
+        Assertions.assertEquals(TicketStatus.OPEN, result.status());
+        Assertions.assertEquals(TicketPriority.HIGH, result.priority());
+        Assertions.assertEquals("Requester name", result.requesterName());
+        Assertions.assertEquals("requester@email.com", result.requesterEmail());
+        Assertions.assertEquals(UserRole.USER, result.requesterRole());
+        Assertions.assertNull(result.technicianName());
+        Assertions.assertNull(result.technicianEmail());
+        Assertions.assertEquals(now, result.createdAt());
+        Assertions.assertEquals(now, result.updatedAt());
+        Assertions.assertNull(result.resolvedAt());
+
+        verify(ticketRepository).findById(ticketId);
+        verify(ticketMapper).convertToResponseDto(ticket);
+    }
+
+    @Test
+    void shouldFindTicketWhenAuthenticatedUserIsAssignedTechnician() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID technicianId = UUID.fromString("9d7c2a54-81e6-4f39-b720-c5a13e68d942");
+        UUID userId = UUID.fromString("6f4a8c21-3d97-4b5e-a162-8e0f73c9d514");
+
+        LocalDateTime now = LocalDateTime.now();
+
+        User user = new User();
+        user.setId(userId);
+        user.setName("Requester name");
+        user.setEmail("requester@email.com");
+        user.setRole(UserRole.USER);
+        user.setActive(true);
+
+        User authenticatedTechnician = new User();
+        authenticatedTechnician.setId(technicianId);
+        authenticatedTechnician.setActive(true);
+        authenticatedTechnician.setRole(UserRole.TECHNICIAN);
+        authenticatedTechnician.setEmail("tech@email.com");
+        authenticatedTechnician.setName("Technician name");
+
+        Ticket ticket = new Ticket();
+        ticket.setId(ticketId);
+        ticket.setStatus(TicketStatus.IN_PROGRESS);
+        ticket.setTechnician(authenticatedTechnician);
+        ticket.setRequester(user);
+
+        TicketResponseDto responseDto = new TicketResponseDto(
+                ticketId,
+                "Title",
+                "Description",
+                TicketStatus.IN_PROGRESS,
+                TicketPriority.HIGH,
+                "Requester name",
+                "requester@email.com",
+                UserRole.USER,
+                "Technician name",
+                "tech@email.com",
+                now,
+                now,
+                null
+        );
+
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+        when(ticketMapper.convertToResponseDto(ticket)).thenReturn(responseDto);
+
+        TicketResponseDto result = ticketService.findById(authenticatedTechnician, ticketId);
+
+        Assertions.assertEquals(ticketId, result.id());
+        Assertions.assertEquals("Title", result.title());
+        Assertions.assertEquals("Description", result.description());
+        Assertions.assertEquals(TicketStatus.IN_PROGRESS, result.status());
+        Assertions.assertEquals(TicketPriority.HIGH, result.priority());
+        Assertions.assertEquals("Requester name", result.requesterName());
+        Assertions.assertEquals("requester@email.com", result.requesterEmail());
+        Assertions.assertEquals(UserRole.USER, result.requesterRole());
+        Assertions.assertEquals("Technician name", result.technicianName());
+        Assertions.assertEquals("tech@email.com", result.technicianEmail());
+        Assertions.assertEquals(now, result.createdAt());
+        Assertions.assertEquals(now, result.updatedAt());
+        Assertions.assertNull(result.resolvedAt());
+
+        verify(ticketRepository).findById(ticketId);
+        verify(ticketMapper).convertToResponseDto(ticket);
+    }
+
+    @Test
+    void shouldFindTicketWhenAuthenticatedUserIsAdmin() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID technicianId = UUID.fromString("9d7c2a54-81e6-4f39-b720-c5a13e68d942");
+        UUID userId = UUID.fromString("6f4a8c21-3d97-4b5e-a162-8e0f73c9d514");
+        UUID adminId = UUID.fromString("2b8e4d71-6c93-47a5-9f20-d1843ab65e09");
+
+        LocalDateTime now = LocalDateTime.now();
+
+        User user = new User();
+        user.setId(userId);
+        user.setName("Requester name");
+        user.setEmail("requester@email.com");
+        user.setRole(UserRole.USER);
+        user.setActive(true);
+
+        User authenticatedAdmin = new User();
+        authenticatedAdmin.setId(adminId);
+        authenticatedAdmin.setActive(true);
+        authenticatedAdmin.setRole(UserRole.ADMIN);
+
+        User technician = new User();
+        technician.setId(technicianId);
+        technician.setActive(true);
+        technician.setRole(UserRole.TECHNICIAN);
+        technician.setEmail("tech@email.com");
+        technician.setName("Technician name");
+
+        Ticket ticket = new Ticket();
+        ticket.setId(ticketId);
+        ticket.setStatus(TicketStatus.IN_PROGRESS);
+        ticket.setTechnician(technician);
+        ticket.setRequester(user);
+
+        TicketResponseDto responseDto = new TicketResponseDto(
+                ticketId,
+                "Title",
+                "Description",
+                TicketStatus.IN_PROGRESS,
+                TicketPriority.HIGH,
+                "Requester name",
+                "requester@email.com",
+                UserRole.USER,
+                "Technician name",
+                "tech@email.com",
+                now,
+                now,
+                null
+        );
+
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+        when(ticketMapper.convertToResponseDto(ticket)).thenReturn(responseDto);
+
+        TicketResponseDto result = ticketService.findById(authenticatedAdmin, ticketId);
+
+        Assertions.assertEquals(ticketId, result.id());
+        Assertions.assertEquals("Title", result.title());
+        Assertions.assertEquals("Description", result.description());
+        Assertions.assertEquals(TicketStatus.IN_PROGRESS, result.status());
+        Assertions.assertEquals(TicketPriority.HIGH, result.priority());
+        Assertions.assertEquals("Requester name", result.requesterName());
+        Assertions.assertEquals("requester@email.com", result.requesterEmail());
+        Assertions.assertEquals(UserRole.USER, result.requesterRole());
+        Assertions.assertEquals("Technician name", result.technicianName());
+        Assertions.assertEquals("tech@email.com", result.technicianEmail());
+        Assertions.assertEquals(now, result.createdAt());
+        Assertions.assertEquals(now, result.updatedAt());
+        Assertions.assertNull(result.resolvedAt());
+
+        verify(ticketRepository).findById(ticketId);
+        verify(ticketMapper).convertToResponseDto(ticket);
+    }
+
+    @Test
+    void shouldThrowAccessDeniedExceptionWhenAuthenticatedUserHasNoAccessToTicket() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID technicianId = UUID.fromString("9d7c2a54-81e6-4f39-b720-c5a13e68d942");
+        UUID userId = UUID.fromString("6f4a8c21-3d97-4b5e-a162-8e0f73c9d514");
+        UUID requesterId = UUID.fromString("2b8e4d71-6c93-47a5-9f20-d1843ab65e09");
+
+        User authenticatedUser = new User();
+        authenticatedUser.setId(userId);
+        authenticatedUser.setRole(UserRole.USER);
+        authenticatedUser.setActive(true);
+
+        User requester = new User();
+        requester.setId(requesterId);
+        requester.setActive(true);
+        requester.setRole(UserRole.USER);
+
+        User technician = new User();
+        technician.setId(technicianId);
+        technician.setActive(true);
+        technician.setRole(UserRole.TECHNICIAN);
+        technician.setEmail("tech@email.com");
+        technician.setName("Technician name");
+
+        Ticket ticket = new Ticket();
+        ticket.setId(ticketId);
+        ticket.setStatus(TicketStatus.IN_PROGRESS);
+        ticket.setTechnician(technician);
+        ticket.setRequester(requester);
+
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+
+        AccessDeniedException exception = Assertions.assertThrows(AccessDeniedException.class,
+                () -> ticketService.findById(authenticatedUser, ticketId));
+
+        Assertions.assertEquals("Ticket does not belong to authenticated user", exception.getMessage());
+
+        verify(ticketRepository).findById(ticketId);
+        verifyNoInteractions(ticketMapper);
+    }
+
+    @Test
+    void shouldThrowAccessDeniedExceptionWhenUserIsNotRequesterAndTicketHasNoTechnician() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID userId = UUID.fromString("6f4a8c21-3d97-4b5e-a162-8e0f73c9d514");
+        UUID requesterId = UUID.fromString("2b8e4d71-6c93-47a5-9f20-d1843ab65e09");
+
+        User authenticatedUser = new User();
+        authenticatedUser.setId(userId);
+        authenticatedUser.setRole(UserRole.USER);
+        authenticatedUser.setActive(true);
+
+        User requester = new User();
+        requester.setId(requesterId);
+        requester.setActive(true);
+        requester.setRole(UserRole.USER);
+
+        Ticket ticket = new Ticket();
+        ticket.setId(ticketId);
+        ticket.setStatus(TicketStatus.OPEN);
+        ticket.setRequester(requester);
+
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+
+        AccessDeniedException exception = Assertions.assertThrows(AccessDeniedException.class,
+                () -> ticketService.findById(authenticatedUser, ticketId));
+
+        Assertions.assertEquals("Ticket does not belong to authenticated user", exception.getMessage());
 
         verify(ticketRepository).findById(ticketId);
         verifyNoInteractions(ticketMapper);
@@ -273,6 +562,12 @@ class TicketServiceTest {
                 null
         );
 
+        User authenticatedUser = new User();
+        authenticatedUser.setId(requesterId);
+        authenticatedUser.setRole(UserRole.USER);
+        authenticatedUser.setName("Requester name");
+        authenticatedUser.setEmail("requester@email.com");
+
         when(ticketRepository.findAll(ArgumentMatchers.<Specification<Ticket>>any(), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(ticket), pageable, 1));
 
@@ -280,6 +575,7 @@ class TicketServiceTest {
                 .thenReturn(responseDto);
 
         Page<TicketResponseDto> result = ticketService.findAll(
+                authenticatedUser,
                 pageable,
                 TicketStatus.OPEN,
                 TicketPriority.HIGH,
@@ -303,6 +599,9 @@ class TicketServiceTest {
         Assertions.assertEquals(createdAt, result.getContent().getFirst().createdAt());
         Assertions.assertEquals(updatedAt, result.getContent().getFirst().updatedAt());
         Assertions.assertNull(result.getContent().getFirst().resolvedAt());
+        Assertions.assertEquals(authenticatedUser.getName(), result.getContent().getFirst().requesterName());
+        Assertions.assertEquals(authenticatedUser.getEmail(), result.getContent().getFirst().requesterEmail());
+        Assertions.assertEquals(authenticatedUser.getRole(), result.getContent().getFirst().requesterRole());
 
         verify(ticketRepository).findAll(ArgumentMatchers.<Specification<Ticket>>any(), eq(pageable));
         verify(ticketMapper).convertToResponseDto(ticket);

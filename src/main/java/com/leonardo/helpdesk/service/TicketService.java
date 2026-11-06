@@ -17,6 +17,7 @@ import com.leonardo.helpdesk.specification.TicketSpecification;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -70,13 +71,23 @@ public class TicketService {
     }
 
     @Transactional(readOnly = true)
-    public TicketResponseDto findById(UUID ticketId){
+    public TicketResponseDto findById(User authenticatedUser, UUID ticketId) {
         Ticket ticketExists = findTicketOrThrow(ticketId);
+
+        boolean isAdmin = authenticatedUser.getRole().equals(UserRole.ADMIN);
+        boolean sameTechnician = ticketExists.getTechnician() != null && ticketExists.getTechnician().getId().equals(authenticatedUser.getId());
+        boolean sameRequester = ticketExists.getRequester().getId().equals(authenticatedUser.getId());
+
+        if(!isAdmin && !sameTechnician && !sameRequester) {
+            throw new AccessDeniedException("Ticket does not belong to authenticated user");
+        }
+
         return ticketMapper.convertToResponseDto(ticketExists);
     }
 
     @Transactional(readOnly = true)
     public Page<TicketResponseDto> findAll(
+            User authenticatedUser,
             Pageable pageable,
             TicketStatus status,
             TicketPriority priority,
@@ -85,10 +96,14 @@ public class TicketService {
             LocalDate startDate,
             LocalDate endDate
     ) {
+
+        UUID effectiveRequesterId = authenticatedUser.getRole().equals(UserRole.USER) ? authenticatedUser.getId() : requesterId;
+        UUID effectiveTechnicianId = authenticatedUser.getRole().equals(UserRole.TECHNICIAN) ? authenticatedUser.getId() : technicianId;
+
         Specification<Ticket> spec = Specification.where(TicketSpecification.findTicketByPriority(priority))
                 .and(TicketSpecification.findTicketsByStatus(status))
-                .and(TicketSpecification.findTicketByRequester(requesterId))
-                .and(TicketSpecification.findTicketByTechnician(technicianId))
+                .and(TicketSpecification.findTicketByRequester(effectiveRequesterId))
+                .and(TicketSpecification.findTicketByTechnician(effectiveTechnicianId))
                 .and(TicketSpecification.findTicketByCreatedAt(startDate, endDate));
 
         Page<Ticket> page = ticketRepository.findAll(spec, pageable);
