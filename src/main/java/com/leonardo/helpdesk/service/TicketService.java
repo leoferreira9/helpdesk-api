@@ -123,6 +123,14 @@ public class TicketService {
             throw new UserNotActiveException("User must be active to update this ticket");
         }
 
+        boolean userCanUpdateTicketDetails = authenticatedUser.getId().equals(ticketExists.getRequester().getId());
+        boolean technicianCanUpdateTicketDetails = ticketExists.getTechnician() != null && authenticatedUser.getId().equals(ticketExists.getTechnician().getId());
+        boolean adminCanUpdateTicketDetails = authenticatedUser.getRole().equals(UserRole.ADMIN);
+
+        if(!userCanUpdateTicketDetails && !technicianCanUpdateTicketDetails && !adminCanUpdateTicketDetails) {
+            throw new AccessDeniedException("Authenticated user can't update this ticket.");
+        }
+
         if(detailsUpdateDto != null){
             if(detailsUpdateDto.title() != null && !detailsUpdateDto.title().isBlank()) {
                 ticketExists.setTitle(detailsUpdateDto.title());

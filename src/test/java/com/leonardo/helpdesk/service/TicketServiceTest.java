@@ -636,14 +636,15 @@ class TicketServiceTest {
                 null
         );
 
-        Ticket ticket = new Ticket();
-        ticket.setStatus(TicketStatus.OPEN);
-
         User user = new User();
         user.setName("Updater name");
         user.setActive(true);
         user.setRole(UserRole.USER);
         user.setId(updaterId);
+
+        Ticket ticket = new Ticket();
+        ticket.setStatus(TicketStatus.OPEN);
+        ticket.setRequester(user);
 
         when(ticketRepository.findById(ticketId))
                 .thenReturn(Optional.of(ticket));
@@ -812,17 +813,18 @@ class TicketServiceTest {
                 TicketPriority.MEDIUM
         );
 
-        Ticket ticket = new Ticket();
-        ticket.setTitle("Title");
-        ticket.setDescription("Description");
-        ticket.setStatus(TicketStatus.OPEN);
-        ticket.setPriority(TicketPriority.HIGH);
-
         User user = new User();
         user.setName("Updater name");
         user.setActive(true);
         user.setRole(UserRole.USER);
         user.setId(updaterId);
+
+        Ticket ticket = new Ticket();
+        ticket.setTitle("Title");
+        ticket.setDescription("Description");
+        ticket.setStatus(TicketStatus.OPEN);
+        ticket.setPriority(TicketPriority.HIGH);
+        ticket.setRequester(user);
 
         TicketResponseDto responseDto = new TicketResponseDto(
                 ticketId, "Title", "Description 2", TicketStatus.OPEN, TicketPriority.MEDIUM,
@@ -859,17 +861,18 @@ class TicketServiceTest {
                 TicketPriority.MEDIUM
         );
 
-        Ticket ticket = new Ticket();
-        ticket.setTitle("Title");
-        ticket.setDescription("Description");
-        ticket.setStatus(TicketStatus.OPEN);
-        ticket.setPriority(TicketPriority.HIGH);
-
         User user = new User();
         user.setName("Updater name");
         user.setActive(true);
         user.setRole(UserRole.USER);
         user.setId(updaterId);
+
+        Ticket ticket = new Ticket();
+        ticket.setTitle("Title");
+        ticket.setDescription("Description");
+        ticket.setStatus(TicketStatus.OPEN);
+        ticket.setPriority(TicketPriority.HIGH);
+        ticket.setRequester(user);
 
         TicketResponseDto responseDto = new TicketResponseDto(
                 ticketId, "Title", "Description 2", TicketStatus.OPEN, TicketPriority.MEDIUM,
@@ -906,17 +909,18 @@ class TicketServiceTest {
                 TicketPriority.MEDIUM
         );
 
-        Ticket ticket = new Ticket();
-        ticket.setTitle("Title");
-        ticket.setDescription("Description");
-        ticket.setStatus(TicketStatus.OPEN);
-        ticket.setPriority(TicketPriority.HIGH);
-
         User user = new User();
         user.setName("Updater name");
         user.setActive(true);
         user.setRole(UserRole.USER);
         user.setId(updaterId);
+
+        Ticket ticket = new Ticket();
+        ticket.setTitle("Title");
+        ticket.setDescription("Description");
+        ticket.setStatus(TicketStatus.OPEN);
+        ticket.setPriority(TicketPriority.HIGH);
+        ticket.setRequester(user);
 
         TicketResponseDto responseDto = new TicketResponseDto(
                 ticketId, "Title 2", "Description", TicketStatus.OPEN, TicketPriority.MEDIUM,
@@ -953,17 +957,18 @@ class TicketServiceTest {
                 TicketPriority.MEDIUM
         );
 
-        Ticket ticket = new Ticket();
-        ticket.setTitle("Title");
-        ticket.setDescription("Description");
-        ticket.setStatus(TicketStatus.OPEN);
-        ticket.setPriority(TicketPriority.HIGH);
-
         User user = new User();
         user.setName("Updater name");
         user.setActive(true);
         user.setRole(UserRole.USER);
         user.setId(updaterId);
+
+        Ticket ticket = new Ticket();
+        ticket.setTitle("Title");
+        ticket.setDescription("Description");
+        ticket.setStatus(TicketStatus.OPEN);
+        ticket.setPriority(TicketPriority.HIGH);
+        ticket.setRequester(user);
 
         TicketResponseDto responseDto = new TicketResponseDto(
                 ticketId, "Title 2", "Description", TicketStatus.OPEN, TicketPriority.MEDIUM,
@@ -1000,17 +1005,18 @@ class TicketServiceTest {
                 null
         );
 
-        Ticket ticket = new Ticket();
-        ticket.setTitle("Title");
-        ticket.setDescription("Description");
-        ticket.setStatus(TicketStatus.OPEN);
-        ticket.setPriority(TicketPriority.HIGH);
-
         User user = new User();
         user.setName("Updater name");
         user.setActive(true);
         user.setRole(UserRole.USER);
         user.setId(updaterId);
+
+        Ticket ticket = new Ticket();
+        ticket.setTitle("Title");
+        ticket.setDescription("Description");
+        ticket.setStatus(TicketStatus.OPEN);
+        ticket.setPriority(TicketPriority.HIGH);
+        ticket.setRequester(user);
 
         TicketResponseDto responseDto = new TicketResponseDto(
                 ticketId, "Title 2", "Description 2", TicketStatus.OPEN, TicketPriority.HIGH,
@@ -1042,17 +1048,18 @@ class TicketServiceTest {
         UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
         UUID updaterId = UUID.fromString("7b3e9a42-6f81-4c25-a9d0-13e8b57c24f6");
 
-        Ticket ticket = new Ticket();
-        ticket.setTitle("Title");
-        ticket.setDescription("Description");
-        ticket.setStatus(TicketStatus.OPEN);
-        ticket.setPriority(TicketPriority.HIGH);
-
         User user = new User();
         user.setName("Updater name");
         user.setActive(true);
         user.setRole(UserRole.USER);
         user.setId(updaterId);
+
+        Ticket ticket = new Ticket();
+        ticket.setTitle("Title");
+        ticket.setDescription("Description");
+        ticket.setStatus(TicketStatus.OPEN);
+        ticket.setPriority(TicketPriority.HIGH);
+        ticket.setRequester(user);
 
         TicketResponseDto responseDto = new TicketResponseDto(
                 ticketId, "Title", "Description", TicketStatus.OPEN, TicketPriority.HIGH,
@@ -1083,20 +1090,30 @@ class TicketServiceTest {
     void shouldRecordTechnicianWhenUpdatingTicketDetails() {
         UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
         UUID updaterId = UUID.fromString("7b3e9a42-6f81-4c25-a9d0-13e8b57c24f6");
+        UUID userId = UUID.fromString("3f8d7a12-6c49-4e85-b231-9a7d5c0f4e68");
+
         TicketDetailsUpdateDto detailsUpdateDto = new TicketDetailsUpdateDto(
                 "Title 2",
                 "Description 2",
                 TicketPriority.MEDIUM
         );
 
-        Ticket ticket = new Ticket();
-        ticket.setStatus(TicketStatus.OPEN);
+        User user = new User();
+        user.setName("Updater name");
+        user.setActive(true);
+        user.setRole(UserRole.USER);
+        user.setId(userId);
 
         User technician = new User();
         technician.setName("Technician name");
         technician.setActive(true);
         technician.setRole(UserRole.TECHNICIAN);
         technician.setId(updaterId);
+
+        Ticket ticket = new Ticket();
+        ticket.setStatus(TicketStatus.OPEN);
+        ticket.setTechnician(technician);
+        ticket.setRequester(user);
 
         TicketResponseDto responseDto = new TicketResponseDto(
                 ticketId, "Title 2", "Description 2", TicketStatus.OPEN, TicketPriority.MEDIUM,
@@ -1121,6 +1138,223 @@ class TicketServiceTest {
         verify(ticketRepository).save(ticket);
         verify(ticketMapper).convertToResponseDto(ticket);
         verify(ticketHistoryService).record(ticket, technician, TicketAction.TICKET_DETAILS_UPDATED, "Ticket updated by technician Technician name");
+    }
+
+    @Test
+    void shouldThrowAccessDeniedExceptionWhenTechnicianIsNotAssignedToTicket() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID userId = UUID.fromString("7b3e9a42-6f81-4c25-a9d0-13e8b57c24f6");
+        UUID technicianId = UUID.fromString("8c4f0b53-7a92-4d36-b0e1-24f9c68d35a7");
+        UUID technicianId2 = UUID.fromString("3f8d7a12-6c49-4e85-b231-9a7d5c0f4e68");
+
+        TicketDetailsUpdateDto detailsUpdateDto = new TicketDetailsUpdateDto(
+                "Title 2",
+                "Description 2",
+                TicketPriority.MEDIUM
+        );
+
+        User user = new User();
+        user.setName("Updater name");
+        user.setActive(true);
+        user.setRole(UserRole.USER);
+        user.setId(userId);
+
+        User technician = new User();
+        technician.setName("Technician name");
+        technician.setActive(true);
+        technician.setRole(UserRole.TECHNICIAN);
+        technician.setId(technicianId);
+
+        User technician2 = new User();
+        technician2.setName("Technician name 2");
+        technician2.setActive(true);
+        technician2.setRole(UserRole.TECHNICIAN);
+        technician2.setId(technicianId2);
+
+        Ticket ticket = new Ticket();
+        ticket.setId(ticketId);
+        ticket.setStatus(TicketStatus.OPEN);
+        ticket.setRequester(user);
+        ticket.setTechnician(technician);
+
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+        when(userRepository.findById(technicianId2)).thenReturn(Optional.of(technician2));
+
+        AccessDeniedException result = Assertions.assertThrows(AccessDeniedException.class,
+                () -> ticketService.updateDetails(technician2, ticketId,detailsUpdateDto));
+
+        Assertions.assertEquals("Authenticated user can't update this ticket.", result.getMessage());
+
+        verify(ticketRepository).findById(ticketId);
+        verify(userRepository).findById(technicianId2);
+        verify(ticketRepository, never()).save(any());
+        verifyNoInteractions(ticketHistoryService);
+        verifyNoInteractions(ticketMapper);
+    }
+
+    @Test
+    void shouldThrowAccessDeniedExceptionWhenUserIsNotTicketRequester() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID userId = UUID.fromString("7b3e9a42-6f81-4c25-a9d0-13e8b57c24f6");
+        UUID userId2 = UUID.fromString("3f8d7a12-6c49-4e85-b231-9a7d5c0f4e68");
+        UUID technicianId = UUID.fromString("8c4f0b53-7a92-4d36-b0e1-24f9c68d35a7");
+
+        TicketDetailsUpdateDto detailsUpdateDto = new TicketDetailsUpdateDto(
+                "Title 2",
+                "Description 2",
+                TicketPriority.MEDIUM
+        );
+
+        User user = new User();
+        user.setName("Updater name");
+        user.setActive(true);
+        user.setRole(UserRole.USER);
+        user.setId(userId);
+
+        User user2 = new User();
+        user2.setName("Updater name 2");
+        user2.setActive(true);
+        user2.setRole(UserRole.USER);
+        user2.setId(userId2);
+
+        User technician = new User();
+        technician.setName("Technician name");
+        technician.setActive(true);
+        technician.setRole(UserRole.TECHNICIAN);
+        technician.setId(technicianId);
+
+        Ticket ticket = new Ticket();
+        ticket.setId(ticketId);
+        ticket.setStatus(TicketStatus.OPEN);
+        ticket.setRequester(user);
+        ticket.setTechnician(technician);
+
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+        when(userRepository.findById(userId2)).thenReturn(Optional.of(user2));
+
+        AccessDeniedException result = Assertions.assertThrows(AccessDeniedException.class,
+                () -> ticketService.updateDetails(user2, ticketId,detailsUpdateDto));
+
+        Assertions.assertEquals("Authenticated user can't update this ticket.", result.getMessage());
+
+        verify(ticketRepository).findById(ticketId);
+        verify(userRepository).findById(userId2);
+        verify(ticketRepository, never()).save(any());
+        verifyNoInteractions(ticketHistoryService);
+        verifyNoInteractions(ticketMapper);
+    }
+
+    @Test
+    void shouldThrowAccessDeniedExceptionWhenUpdatingTicketWithoutTechnicianByNonRequester() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID requesterId = UUID.fromString("7b3e9a42-6f81-4c25-a9d0-13e8b57c24f6");
+        UUID authenticatedUserId = UUID.fromString("3f8d7a12-6c49-4e85-b231-9a7d5c0f4e68");
+
+        TicketDetailsUpdateDto detailsUpdateDto = new TicketDetailsUpdateDto(
+                "Title 2",
+                "Description 2",
+                TicketPriority.MEDIUM
+        );
+
+        User requester = new User();
+        requester.setId(requesterId);
+        requester.setRole(UserRole.USER);
+
+        User authenticatedUser = new User();
+        authenticatedUser.setId(authenticatedUserId);
+        authenticatedUser.setActive(true);
+        authenticatedUser.setRole(UserRole.USER);
+
+        Ticket ticket = new Ticket();
+        ticket.setId(ticketId);
+        ticket.setStatus(TicketStatus.OPEN);
+        ticket.setRequester(requester);
+
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+        when(userRepository.findById(authenticatedUserId)).thenReturn(Optional.of(authenticatedUser));
+
+        AccessDeniedException result = Assertions.assertThrows(AccessDeniedException.class,
+                () -> ticketService.updateDetails(authenticatedUser, ticketId, detailsUpdateDto));
+
+        Assertions.assertEquals("Authenticated user can't update this ticket.", result.getMessage());
+
+        verify(ticketRepository).findById(ticketId);
+        verify(userRepository).findById(authenticatedUserId);
+        verify(ticketRepository, never()).save(any());
+        verifyNoInteractions(ticketHistoryService);
+        verifyNoInteractions(ticketMapper);
+
+    }
+
+    @Test
+    void shouldUpdateTicketDetailsWhenAuthenticatedUserIsAdmin() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID userId = UUID.fromString("7b3e9a42-6f81-4c25-a9d0-13e8b57c24f6");
+        UUID adminId = UUID.fromString("3f8d7a12-6c49-4e85-b231-9a7d5c0f4e68");
+        UUID technicianId = UUID.fromString("8c4f0b53-7a92-4d36-b0e1-24f9c68d35a7");
+        LocalDateTime now = LocalDateTime.now();
+
+        TicketDetailsUpdateDto detailsUpdateDto = new TicketDetailsUpdateDto(
+                "Title 2",
+                "Description 2",
+                TicketPriority.HIGH
+        );
+
+        User admin = new User();
+        admin.setName("Admin");
+        admin.setActive(true);
+        admin.setRole(UserRole.ADMIN);
+        admin.setId(adminId);
+
+        User user = new User();
+        user.setName("Requester name");
+        user.setEmail("requester@email.com");
+        user.setActive(true);
+        user.setRole(UserRole.USER);
+        user.setId(userId);
+
+        User technician = new User();
+        technician.setName("Technician name");
+        technician.setEmail("tech@email.com");
+        technician.setActive(true);
+        technician.setRole(UserRole.TECHNICIAN);
+        technician.setId(technicianId);
+
+        Ticket ticket = new Ticket();
+        ticket.setTitle("Title");
+        ticket.setDescription("Description");
+        ticket.setPriority(TicketPriority.MEDIUM);
+        ticket.setId(ticketId);
+        ticket.setStatus(TicketStatus.OPEN);
+        ticket.setRequester(user);
+        ticket.setTechnician(technician);
+
+        TicketResponseDto responseDto = new TicketResponseDto(
+                ticketId, "Title 2", "Description 2", TicketStatus.OPEN, TicketPriority.HIGH,
+                "Requester name", "requester@email.com", UserRole.USER,
+                "Technician name", "tech@email.com", now, now, null
+        );
+
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+        when(userRepository.findById(adminId)).thenReturn(Optional.of(admin));
+        when(ticketRepository.save(ticket)).thenReturn(ticket);
+        when(ticketMapper.convertToResponseDto(ticket)).thenReturn(responseDto);
+
+        TicketResponseDto result = ticketService.updateDetails(admin, ticketId, detailsUpdateDto);
+
+        Assertions.assertEquals("Title 2", ticket.getTitle());
+        Assertions.assertEquals("Description 2", ticket.getDescription());
+        Assertions.assertEquals(TicketPriority.HIGH, ticket.getPriority());
+        Assertions.assertEquals("Requester name", result.requesterName());
+        Assertions.assertEquals("requester@email.com", result.requesterEmail());
+        Assertions.assertEquals("Technician name", result.technicianName());
+        Assertions.assertEquals("tech@email.com", result.technicianEmail());
+
+        verify(ticketRepository).findById(ticketId);
+        verify(userRepository).findById(adminId);
+        verify(ticketRepository).save(ticket);
+        verify(ticketHistoryService).record(ticket, admin, TicketAction.TICKET_DETAILS_UPDATED, "Ticket updated by user Admin");
+        verify(ticketMapper).convertToResponseDto(ticket);
     }
 
     @Test
