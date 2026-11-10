@@ -6,6 +6,7 @@ import com.leonardo.helpdesk.entity.Ticket;
 import com.leonardo.helpdesk.entity.TicketComment;
 import com.leonardo.helpdesk.entity.User;
 import com.leonardo.helpdesk.enums.TicketStatus;
+import com.leonardo.helpdesk.enums.UserRole;
 import com.leonardo.helpdesk.exception.InvalidTicketStatusException;
 import com.leonardo.helpdesk.exception.ResourceNotFoundException;
 import com.leonardo.helpdesk.exception.UserNotActiveException;
@@ -13,6 +14,7 @@ import com.leonardo.helpdesk.mapper.TicketCommentMapper;
 import com.leonardo.helpdesk.repository.TicketCommentRepository;
 import com.leonardo.helpdesk.repository.TicketRepository;
 import com.leonardo.helpdesk.repository.UserRepository;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -55,6 +57,14 @@ public class TicketCommentService {
 
         if(ticketExists.getStatus() == TicketStatus.CLOSED) {
             throw new InvalidTicketStatusException("Can't comment, this ticket is closed");
+        }
+
+        boolean isAdmin = authenticatedUser.getRole().equals(UserRole.ADMIN);
+        boolean sameTechnician = ticketExists.getTechnician() != null && ticketExists.getTechnician().getId().equals(authenticatedUser.getId());
+        boolean sameRequester = ticketExists.getRequester().getId().equals(authenticatedUser.getId());
+
+        if(!isAdmin && !sameTechnician && !sameRequester) {
+            throw new AccessDeniedException("Can't comment, ticket does not belong to authenticated user");
         }
 
         TicketComment ticketComment = new TicketComment();
