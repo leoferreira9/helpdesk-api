@@ -1889,7 +1889,7 @@ class TicketServiceTest {
     }
 
     @Test
-    void shouldCloseTicket() {
+    void shouldCloseTicketWhenAuthenticatedUserIsRequester() {
         UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
         UUID userId = UUID.fromString("8c4f0b53-7a92-4d36-b0e1-24f9c68d35a7");
 
@@ -1940,6 +1940,162 @@ class TicketServiceTest {
         verify(ticketMapper).convertToResponseDto(ticket);
         verify(ticketRepository).save(ticket);
         verify(ticketHistoryService).record(ticket, user, TicketAction.TICKET_CLOSED, "Ticket closed by Requester name");
+    }
+
+    @Test
+    void shouldCloseTicketWhenAuthenticatedUserIsAdmin() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID adminId = UUID.fromString("8c4f0b53-7a92-4d36-b0e1-24f9c68d35a7");
+        UUID userId = UUID.fromString("6f2c8a91-3d47-4be5-b860-1a9e7c54d2f3");
+        LocalDateTime now = LocalDateTime.now();
+
+        User admin = new User();
+        admin.setRole(UserRole.ADMIN);
+        admin.setId(adminId);
+        admin.setActive(true);
+        admin.setName("Admin");
+        admin.setEmail("admin@email.com");
+
+        User user = new User();
+        user.setRole(UserRole.USER);
+        user.setId(userId);
+        user.setActive(true);
+        user.setName("User");
+        user.setEmail("user@email.com");
+
+        Ticket ticket = new Ticket();
+        ticket.setTitle("Title");
+        ticket.setDescription("Description");
+        ticket.setPriority(TicketPriority.MEDIUM);
+        ticket.setId(ticketId);
+        ticket.setStatus(TicketStatus.RESOLVED);
+        ticket.setRequester(user);
+        ticket.setResolvedAt(now);
+
+        TicketResponseDto responseDto = new TicketResponseDto(
+                ticketId, "Title", "Description", TicketStatus.CLOSED, TicketPriority.MEDIUM,
+                "User", "user@email.com", UserRole.USER,
+                "Technician name", "tech@email.com", now, now, now
+        );
+
+        when(userRepository.findById(adminId)).thenReturn(Optional.of(admin));
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+        when(ticketMapper.convertToResponseDto(ticket)).thenReturn(responseDto);
+        when(ticketRepository.save(ticket)).thenReturn(ticket);
+
+        TicketResponseDto result = ticketService.close(admin, ticketId);
+
+        Assertions.assertEquals("Title", result.title());
+        Assertions.assertEquals("Description", result.description());
+        Assertions.assertEquals("User", result.requesterName());
+        Assertions.assertEquals("user@email.com", result.requesterEmail());
+        Assertions.assertEquals("Technician name", result.technicianName());
+        Assertions.assertEquals("tech@email.com", result.technicianEmail());
+        Assertions.assertEquals(TicketStatus.CLOSED, ticket.getStatus());
+        Assertions.assertSame(user, ticket.getRequester());
+        Assertions.assertEquals(TicketPriority.MEDIUM, result.priority());
+        Assertions.assertEquals(UserRole.USER, result.requesterRole());
+        Assertions.assertEquals(now, result.createdAt());
+        Assertions.assertEquals(now, result.updatedAt());
+        Assertions.assertEquals(now, ticket.getResolvedAt());
+
+        verify(userRepository).findById(adminId);
+        verify(ticketRepository).findById(ticketId);
+        verify(ticketMapper).convertToResponseDto(ticket);
+        verify(ticketRepository).save(ticket);
+        verify(ticketHistoryService).record(ticket, admin, TicketAction.TICKET_CLOSED, "Ticket closed by Admin");
+    }
+
+    @Test
+    void shouldThrowAccessDeniedExceptionWhenTechnicianTriesToCloseTicket() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID userId = UUID.fromString("8c4f0b53-7a92-4d36-b0e1-24f9c68d35a7");
+        UUID technicianId = UUID.fromString("6f2c8a91-3d47-4be5-b860-1a9e7c54d2f3");
+        LocalDateTime now = LocalDateTime.now();
+
+        User technician = new User();
+        technician.setRole(UserRole.TECHNICIAN);
+        technician.setId(technicianId);
+        technician.setActive(true);
+        technician.setName("Technician");
+        technician.setEmail("tech@email.com");
+
+        User user = new User();
+        user.setRole(UserRole.USER);
+        user.setId(userId);
+        user.setActive(true);
+        user.setName("User");
+        user.setEmail("user@email.com");
+
+        Ticket ticket = new Ticket();
+        ticket.setTechnician(technician);
+        ticket.setTitle("Title");
+        ticket.setDescription("Description");
+        ticket.setPriority(TicketPriority.MEDIUM);
+        ticket.setId(ticketId);
+        ticket.setStatus(TicketStatus.RESOLVED);
+        ticket.setRequester(user);
+        ticket.setResolvedAt(now);
+
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+        when(userRepository.findById(technicianId)).thenReturn(Optional.of(technician));
+
+        AccessDeniedException exception = Assertions.assertThrows(AccessDeniedException.class,
+                () -> ticketService.close(technician, ticketId));
+
+        Assertions.assertEquals("Can't close ticket, it does not belong to authenticated user", exception.getMessage());
+
+        verifyNoInteractions(ticketMapper);
+        verifyNoInteractions(ticketHistoryService);
+        verify(userRepository).findById(technicianId);
+        verify(ticketRepository).findById(ticketId);
+        verify(ticketRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldThrowAccessDeniedExceptionWhenRequesterDoesNotOwnTicket() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID userId = UUID.fromString("8c4f0b53-7a92-4d36-b0e1-24f9c68d35a7");
+        UUID userId2 = UUID.fromString("6f2c8a91-3d47-4be5-b860-1a9e7c54d2f3");
+        LocalDateTime now = LocalDateTime.now();
+
+
+        User user = new User();
+        user.setRole(UserRole.USER);
+        user.setId(userId);
+        user.setActive(true);
+        user.setName("User");
+        user.setEmail("user@email.com");
+
+        User user2 = new User();
+        user2.setRole(UserRole.USER);
+        user2.setId(userId2);
+        user2.setActive(true);
+        user2.setName("User 2");
+        user2.setEmail("user2@email.com");
+
+        Ticket ticket = new Ticket();
+        ticket.setTitle("Title");
+        ticket.setDescription("Description");
+        ticket.setPriority(TicketPriority.MEDIUM);
+        ticket.setId(ticketId);
+        ticket.setStatus(TicketStatus.RESOLVED);
+        ticket.setRequester(user);
+        ticket.setResolvedAt(now);
+
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+        when(userRepository.findById(userId2)).thenReturn(Optional.of(user2));
+
+        AccessDeniedException exception = Assertions.assertThrows(AccessDeniedException.class,
+                () -> ticketService.close(user2, ticketId));
+
+        Assertions.assertEquals("Can't close ticket, it does not belong to authenticated user", exception.getMessage());
+
+        verifyNoInteractions(ticketMapper);
+        verifyNoInteractions(ticketHistoryService);
+        verify(userRepository).findById(userId2);
+        verify(ticketRepository).findById(ticketId);
+        verify(ticketRepository, never()).save(any());
     }
 
     @Test

@@ -241,6 +241,13 @@ public class TicketService {
             throw new UserNotActiveException("User must be active to close this ticket");
         }
 
+        boolean isAdmin = authenticatedUser.getRole().equals(UserRole.ADMIN);
+        boolean sameRequester = ticketExists.getRequester().getId().equals(authenticatedUser.getId());
+
+        if(!isAdmin && !sameRequester) {
+            throw new AccessDeniedException("Can't close ticket, it does not belong to authenticated user");
+        }
+
         ticketExists.setStatus(TicketStatus.CLOSED);
         Ticket savedTicket = ticketRepository.save(ticketExists);
 
