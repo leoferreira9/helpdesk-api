@@ -5,6 +5,7 @@ import com.leonardo.helpdesk.dto.response.TicketCommentResponseDto;
 import com.leonardo.helpdesk.entity.Ticket;
 import com.leonardo.helpdesk.entity.TicketComment;
 import com.leonardo.helpdesk.entity.User;
+import com.leonardo.helpdesk.enums.TicketPriority;
 import com.leonardo.helpdesk.enums.TicketStatus;
 import com.leonardo.helpdesk.enums.UserRole;
 import com.leonardo.helpdesk.exception.InvalidTicketStatusException;
@@ -24,6 +25,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -472,5 +474,290 @@ class TicketCommentServiceTest {
         verify(userRepository).findById(userId);
         verifyNoInteractions(ticketCommentRepository);
         verifyNoInteractions(ticketCommentMapper);
+    }
+
+    @Test
+    void shouldFindCommentsByTicketIdWhenUserIsAdmin() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID userId = UUID.fromString("8c4f0b53-7a92-4d36-b0e1-24f9c68d35a7");
+        UUID adminId = UUID.fromString("a83f5d29-7c41-4e96-b258-0d6a3f9174cb");
+        UUID ticketCommentId = UUID.fromString("d47b1e63-92a5-4fc8-8e10-5b7396d2a841");
+        LocalDateTime now = LocalDateTime.now();
+
+        User user = new User();
+        user.setId(userId);
+        user.setActive(true);
+        user.setRole(UserRole.USER);
+        user.setName("Name");
+        user.setEmail("user@email.com");
+
+        User admin = new User();
+        admin.setId(adminId);
+        admin.setActive(true);
+        admin.setRole(UserRole.ADMIN);
+        admin.setName("Admin");
+        admin.setEmail("admin@email.com");
+
+        Ticket ticket = new Ticket();
+        ticket.setId(ticketId);
+        ticket.setPriority(TicketPriority.MEDIUM);
+        ticket.setDescription("Description");
+        ticket.setTitle("Title");
+        ticket.setRequester(user);
+        ticket.setStatus(TicketStatus.IN_PROGRESS);
+
+        TicketComment ticketComment = new TicketComment();
+        ticketComment.setId(ticketCommentId);
+        ticketComment.setCreatedAt(now);
+        ticketComment.setTicket(ticket);
+        ticketComment.setUser(user);
+
+        TicketCommentResponseDto responseDto = new TicketCommentResponseDto(
+                ticketCommentId, userId, ticketId, "Name", "Comment", now
+        );
+
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+        when(ticketCommentRepository.findByTicketIdOrderByCreatedAtAsc(ticketId)).thenReturn(List.of(ticketComment));
+        when(ticketCommentMapper.convertToResponseDto(ticketComment)).thenReturn(responseDto);
+
+        List<TicketCommentResponseDto> result = ticketCommentService.findByTicketId(admin, ticketId);
+
+        Assertions.assertEquals(1, result.size());
+        Assertions.assertEquals("Name", result.getFirst().userName());
+        Assertions.assertEquals("Comment", result.getFirst().comment());
+        Assertions.assertEquals(ticketId, result.getFirst().ticketId());
+        Assertions.assertEquals(userId, result.getFirst().userId());
+
+        verify(ticketRepository).findById(ticketId);
+        verify(ticketCommentMapper).convertToResponseDto(ticketComment);
+        verify(ticketCommentRepository).findByTicketIdOrderByCreatedAtAsc(ticketId);
+    }
+
+    @Test
+    void shouldFindCommentsByTicketIdWhenUserIsRequester() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID userId = UUID.fromString("8c4f0b53-7a92-4d36-b0e1-24f9c68d35a7");
+        UUID ticketCommentId = UUID.fromString("d47b1e63-92a5-4fc8-8e10-5b7396d2a841");
+        LocalDateTime now = LocalDateTime.now();
+
+        User user = new User();
+        user.setId(userId);
+        user.setActive(true);
+        user.setRole(UserRole.USER);
+        user.setName("Name");
+        user.setEmail("user@email.com");
+
+        Ticket ticket = new Ticket();
+        ticket.setId(ticketId);
+        ticket.setPriority(TicketPriority.MEDIUM);
+        ticket.setDescription("Description");
+        ticket.setTitle("Title");
+        ticket.setRequester(user);
+        ticket.setStatus(TicketStatus.IN_PROGRESS);
+
+        TicketComment ticketComment = new TicketComment();
+        ticketComment.setId(ticketCommentId);
+        ticketComment.setCreatedAt(now);
+        ticketComment.setTicket(ticket);
+        ticketComment.setUser(user);
+
+        TicketCommentResponseDto responseDto = new TicketCommentResponseDto(
+                ticketCommentId, userId, ticketId, "Name", "Comment", now
+        );
+
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+        when(ticketCommentRepository.findByTicketIdOrderByCreatedAtAsc(ticketId)).thenReturn(List.of(ticketComment));
+        when(ticketCommentMapper.convertToResponseDto(ticketComment)).thenReturn(responseDto);
+
+        List<TicketCommentResponseDto> result = ticketCommentService.findByTicketId(user, ticketId);
+
+        Assertions.assertEquals(1, result.size());
+        Assertions.assertEquals("Name", result.getFirst().userName());
+        Assertions.assertEquals("Comment", result.getFirst().comment());
+        Assertions.assertEquals(ticketId, result.getFirst().ticketId());
+        Assertions.assertEquals(userId, result.getFirst().userId());
+
+        verify(ticketRepository).findById(ticketId);
+        verify(ticketCommentMapper).convertToResponseDto(ticketComment);
+        verify(ticketCommentRepository).findByTicketIdOrderByCreatedAtAsc(ticketId);
+    }
+
+    @Test
+    void shouldFindCommentsByTicketIdWhenUserIsAssignedTechnician() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID userId = UUID.fromString("8c4f0b53-7a92-4d36-b0e1-24f9c68d35a7");
+        UUID technicianId = UUID.fromString("a83f5d29-7c41-4e96-b258-0d6a3f9174cb");
+        UUID ticketCommentId = UUID.fromString("d47b1e63-92a5-4fc8-8e10-5b7396d2a841");
+        LocalDateTime now = LocalDateTime.now();
+
+        User user = new User();
+        user.setId(userId);
+        user.setActive(true);
+        user.setRole(UserRole.USER);
+        user.setName("Name");
+        user.setEmail("user@email.com");
+
+        User technician = new User();
+        technician.setId(technicianId);
+        technician.setActive(true);
+        technician.setRole(UserRole.TECHNICIAN);
+        technician.setName("Technician");
+        technician.setEmail("tech@email.com");
+
+        Ticket ticket = new Ticket();
+        ticket.setId(ticketId);
+        ticket.setPriority(TicketPriority.MEDIUM);
+        ticket.setDescription("Description");
+        ticket.setTitle("Title");
+        ticket.setRequester(user);
+        ticket.setTechnician(technician);
+        ticket.setStatus(TicketStatus.IN_PROGRESS);
+
+        TicketComment ticketComment = new TicketComment();
+        ticketComment.setId(ticketCommentId);
+        ticketComment.setCreatedAt(now);
+        ticketComment.setTicket(ticket);
+        ticketComment.setUser(user);
+
+        TicketCommentResponseDto responseDto = new TicketCommentResponseDto(
+                ticketCommentId, userId, ticketId, "Name", "Comment", now
+        );
+
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+        when(ticketCommentRepository.findByTicketIdOrderByCreatedAtAsc(ticketId)).thenReturn(List.of(ticketComment));
+        when(ticketCommentMapper.convertToResponseDto(ticketComment)).thenReturn(responseDto);
+
+        List<TicketCommentResponseDto> result = ticketCommentService.findByTicketId(technician, ticketId);
+
+        Assertions.assertEquals(1, result.size());
+        Assertions.assertEquals("Name", result.getFirst().userName());
+        Assertions.assertEquals("Comment", result.getFirst().comment());
+        Assertions.assertEquals(ticketId, result.getFirst().ticketId());
+        Assertions.assertEquals(userId, result.getFirst().userId());
+
+        verify(ticketRepository).findById(ticketId);
+        verify(ticketCommentMapper).convertToResponseDto(ticketComment);
+        verify(ticketCommentRepository).findByTicketIdOrderByCreatedAtAsc(ticketId);
+    }
+
+    @Test
+    void shouldThrowAccessDeniedExceptionWhenFindingCommentsAsRequesterWhoDoesNotOwnTicket() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID userId = UUID.fromString("8c4f0b53-7a92-4d36-b0e1-24f9c68d35a7");
+        UUID user2Id = UUID.fromString("a83f5d29-7c41-4e96-b258-0d6a3f9174cb");
+
+        User user = new User();
+        user.setId(userId);
+        user.setActive(true);
+        user.setRole(UserRole.USER);
+        user.setName("Name");
+        user.setEmail("user@email.com");
+
+        User user2 = new User();
+        user2.setId(user2Id);
+        user2.setActive(true);
+        user2.setRole(UserRole.USER);
+        user2.setName("User 2");
+        user2.setEmail("user2@email.com");
+
+        Ticket ticket = new Ticket();
+        ticket.setId(ticketId);
+        ticket.setPriority(TicketPriority.MEDIUM);
+        ticket.setDescription("Description");
+        ticket.setTitle("Title");
+        ticket.setRequester(user);
+        ticket.setStatus(TicketStatus.IN_PROGRESS);
+
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+
+        AccessDeniedException exception = Assertions.assertThrows(AccessDeniedException.class,
+                () -> ticketCommentService.findByTicketId(user2, ticketId));
+
+        Assertions.assertEquals("Can't read comments, ticket does not belong to authenticated user", exception.getMessage());
+
+        verify(ticketRepository).findById(ticketId);
+        verifyNoInteractions(ticketCommentMapper);
+        verifyNoInteractions(ticketCommentRepository);
+    }
+
+    @Test
+    void shouldThrowAccessDeniedExceptionWhenFindingCommentsAsTechnicianNotAssignedToTicket() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID userId = UUID.fromString("8c4f0b53-7a92-4d36-b0e1-24f9c68d35a7");
+        UUID technicianId = UUID.fromString("a83f5d29-7c41-4e96-b258-0d6a3f9174cb");
+        UUID technicianId2 = UUID.fromString("b74e6c2a-1f93-4d85-a7b0-9c42e6f3185d");
+
+        User user = new User();
+        user.setId(userId);
+        user.setActive(true);
+        user.setRole(UserRole.USER);
+        user.setName("Name");
+        user.setEmail("user@email.com");
+
+        User technician = new User();
+        technician.setId(technicianId);
+        technician.setActive(true);
+        technician.setRole(UserRole.TECHNICIAN);
+        technician.setName("Technician");
+        technician.setEmail("tech@email.com");
+
+        User technician2 = new User();
+        technician2.setId(technicianId2);
+        technician2.setActive(true);
+        technician2.setRole(UserRole.TECHNICIAN);
+        technician2.setName("Technician 2");
+        technician2.setEmail("tech2@email.com");
+
+        Ticket ticket = new Ticket();
+        ticket.setId(ticketId);
+        ticket.setPriority(TicketPriority.MEDIUM);
+        ticket.setDescription("Description");
+        ticket.setTitle("Title");
+        ticket.setRequester(user);
+        ticket.setTechnician(technician);
+        ticket.setStatus(TicketStatus.IN_PROGRESS);
+
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+
+        AccessDeniedException exception = Assertions.assertThrows(AccessDeniedException.class,
+                () -> ticketCommentService.findByTicketId(technician2, ticketId));
+
+        Assertions.assertEquals("Can't read comments, ticket does not belong to authenticated user", exception.getMessage());
+
+        verify(ticketRepository).findById(ticketId);
+        verifyNoInteractions(ticketCommentMapper);
+        verifyNoInteractions(ticketCommentRepository);
+    }
+
+    @Test
+    void shouldThrowResourceNotFoundExceptionWhenFindingCommentsForNonexistentTicket() {
+        UUID ticketId = UUID.fromString("4a8b2c1e-9f3d-4e2a-8b1c-7d6e5f4a3b2c");
+        UUID userId = UUID.fromString("8c4f0b53-7a92-4d36-b0e1-24f9c68d35a7");
+
+        User user = new User();
+        user.setId(userId);
+        user.setActive(true);
+        user.setRole(UserRole.USER);
+        user.setName("Name");
+        user.setEmail("user@email.com");
+
+        Ticket ticket = new Ticket();
+        ticket.setId(ticketId);
+        ticket.setPriority(TicketPriority.MEDIUM);
+        ticket.setDescription("Description");
+        ticket.setTitle("Title");
+        ticket.setRequester(user);
+        ticket.setStatus(TicketStatus.IN_PROGRESS);
+
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.empty());
+
+        ResourceNotFoundException exception = Assertions.assertThrows(ResourceNotFoundException.class,
+                () -> ticketCommentService.findByTicketId(user, ticketId));
+
+        Assertions.assertEquals("Ticket not found with ID: " + ticketId, exception.getMessage());
+
+        verify(ticketRepository).findById(ticketId);
+        verifyNoInteractions(ticketCommentMapper);
+        verifyNoInteractions(ticketCommentRepository);
     }
 }

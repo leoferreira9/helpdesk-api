@@ -78,8 +78,17 @@ public class TicketCommentService {
     }
 
     @Transactional(readOnly = true)
-    public List<TicketCommentResponseDto> findByTicketId(UUID id) {
+    public List<TicketCommentResponseDto> findByTicketId(User authenticatedUser, UUID id) {
         Ticket ticketExists = findTicketByIdOrThrow(id);
+
+        boolean isAdmin = authenticatedUser.getRole().equals(UserRole.ADMIN);
+        boolean sameTechnician = ticketExists.getTechnician() != null && ticketExists.getTechnician().getId().equals(authenticatedUser.getId());
+        boolean sameRequester = ticketExists.getRequester().getId().equals(authenticatedUser.getId());
+
+        if(!isAdmin && !sameTechnician && !sameRequester) {
+            throw new AccessDeniedException("Can't read comments, ticket does not belong to authenticated user");
+        }
+
         return ticketCommentRepository.findByTicketIdOrderByCreatedAtAsc(ticketExists.getId())
                 .stream().map(ticketCommentMapper::convertToResponseDto).toList();
     }

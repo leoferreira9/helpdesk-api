@@ -61,8 +61,8 @@ public class TicketController {
     }
 
     @GetMapping("/{id}/comments")
-    public ResponseEntity<List<TicketCommentResponseDto>> findCommentsByTicketId(@PathVariable UUID id) {
-        List<TicketCommentResponseDto> comments = ticketCommentService.findByTicketId(id);
+    public ResponseEntity<List<TicketCommentResponseDto>> findCommentsByTicketId(@AuthenticationPrincipal User authenticatedUser, @PathVariable UUID id) {
+        List<TicketCommentResponseDto> comments = ticketCommentService.findByTicketId(authenticatedUser, id);
         return ResponseEntity.ok(comments);
     }
 
