@@ -73,8 +73,8 @@ public class TicketController {
     }
 
     @GetMapping("/{id}/history")
-    public ResponseEntity<List<TicketHistoryResponseDto>> findTicketHistoryById(@PathVariable UUID id) {
-        List<TicketHistoryResponseDto> ticketHistory = ticketHistoryService.findByTicketId(id);
+    public ResponseEntity<List<TicketHistoryResponseDto>> findTicketHistoryById(@AuthenticationPrincipal User authenticatedUser, @PathVariable UUID id) {
+        List<TicketHistoryResponseDto> ticketHistory = ticketHistoryService.findByTicketId(authenticatedUser, id);
         return ResponseEntity.ok(ticketHistory);
     }
 
