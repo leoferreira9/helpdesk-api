@@ -63,6 +63,11 @@ public class UserService {
         return pageResult.map(userMapper::convertToResponseDto);
     }
 
+    public UserResponseDto findCurrentUser(User authenticatedUser) {
+        User userExists = findUserOrThrow(authenticatedUser.getId());
+        return userMapper.convertToResponseDto(userExists);
+    }
+
     @Transactional
     public UserResponseDto update(UUID id, UserUpdateDto updateDto) {
         User userExists = findUserOrThrow(id);

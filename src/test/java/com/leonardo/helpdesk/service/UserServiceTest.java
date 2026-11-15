@@ -174,6 +174,40 @@ class UserServiceTest {
     }
 
     @Test
+    void shouldFindCurrentAuthenticatedUser() {
+        User user = new User();
+        user.setRole(UserRole.USER);
+        user.setId(USER_ID);
+        user.setActive(true);
+        user.setName(USER_NAME);
+        user.setEmail(USER_EMAIL);
+
+        UserResponseDto responseDto = new UserResponseDto(
+                USER_ID,
+                USER_NAME,
+                USER_EMAIL,
+                UserRole.USER,
+                true,
+                CREATED_AT
+        );
+
+        when(repository.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(mapper.convertToResponseDto(user)).thenReturn(responseDto);
+
+        UserResponseDto result = service.findCurrentUser(user);
+
+        Assertions.assertEquals(USER_ID, result.id());
+        Assertions.assertEquals(USER_NAME, result.name());
+        Assertions.assertEquals(USER_EMAIL, result.email());
+        Assertions.assertEquals(UserRole.USER, result.role());
+        Assertions.assertTrue(result.active());
+        Assertions.assertEquals(CREATED_AT, result.createdAt());
+
+        verify(repository).findById(USER_ID);
+        verify(mapper).convertToResponseDto(user);
+    }
+
+    @Test
     void shouldThrowExceptionWhenFindingUserById() {
 
         when(repository.findById(USER_ID))

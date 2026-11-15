@@ -42,16 +42,24 @@ public class UserController {
         return ResponseEntity.created(location).body(savedUser);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/{id}")
     public ResponseEntity<UserResponseDto> findById(@PathVariable UUID id) {
         UserResponseDto user = userService.findById(id);
         return ResponseEntity.ok(user);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public ResponseEntity<Page<UserResponseDto>> findAll(Pageable pageable) {
         Page<UserResponseDto> users = userService.findAll(pageable);
         return ResponseEntity.ok(users);
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<UserResponseDto> findCurrentUser(@AuthenticationPrincipal User authenticatedUser) {
+        UserResponseDto user = userService.findCurrentUser(authenticatedUser);
+        return ResponseEntity.ok(user);
     }
 
     @PreAuthorize("hasRole('ADMIN')")
