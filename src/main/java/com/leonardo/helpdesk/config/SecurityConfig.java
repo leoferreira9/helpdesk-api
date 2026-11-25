@@ -52,7 +52,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/tickets/{ticketId}/assign").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/tickets/{ticketId}/resolve").hasRole("TECHNICIAN")
-                        .requestMatchers("/login", "/register", "/verify-email").permitAll()
+                        .requestMatchers("/login", "/register", "/verify-email", "/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
